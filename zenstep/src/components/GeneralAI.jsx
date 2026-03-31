@@ -39,67 +39,57 @@ export default function GeneralAI() {
     setLoading(true)
 
     try {
-      const systemPrompt = "You are ZenBot, a friendly mental wellness assistant specialized in Darija (Moroccan Arabic). You are created by Hamza Amirni. Keep your responses empathetic and helpful."
+      const systemPrompt = "Mochida. Friendly Darija AI by Hamza Amirni."
       let aiText = ''
 
-      // 1. Try Direct Gemini (Stable & Professional)
+      // 1. Try Gemini via Nexra Proxy (Handles CORS)
       try {
-        const payload = {
-          contents: [
-            { role: "user", parts: [{ text: systemPrompt }] },
-            ...newMessages.slice(-6).map(m => ({
-              role: m.role === 'model' ? "model" : "user",
-              parts: [{ text: m.text }]
-            }))
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          }
-        }
-
-        const res = await fetch(GEMINI_URL, {
+        const res = await fetch('https://nexra.aryahcr.cc/api/chat/gpt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            prompt: userMsg,
+            messages: newMessages.slice(-5).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
+            model: "GEMINI",
+            markdown: true
+          })
         })
         const data = await res.json()
-        if (data.candidates && data.candidates[0].content.parts[0].text) {
-          aiText = data.candidates[0].content.parts[0].text
-          console.log("Success with Direct Gemini")
-        }
+        if (data.gpt || data.result) aiText = data.gpt || data.result
       } catch (e) {
-        console.warn("Direct Gemini failed, trying Nexra fallback...")
+        console.warn("Nexra Gemini failed...")
       }
 
-      // 2. Nexra Fallback
+      // 2. Try Pollinations Gemini Fallback
+      if (!aiText) {
+        try {
+          const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=gemini&cache=${Date.now()}`)
+          if (res.ok) aiText = await res.text()
+        } catch (e) { console.warn("Pollinations Gemini failed") }
+      }
+
+      // 3. Last resort: ChatGPT via Nexra
       if (!aiText) {
         try {
           const res = await fetch('https://nexra.aryahcr.cc/api/chat/gpt', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt: userMsg,
-              messages: newMessages.slice(-5).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
-              model: "CHATGPT",
-              markdown: true
-            })
+            body: JSON.stringify({ prompt: userMsg, model: "CHATGPT" })
           })
           const data = await res.json()
           aiText = data.gpt || data.result
-        } catch (e) { console.warn("Nexra Fallback failed") }
+        } catch (e) { console.warn("Final fallback failed") }
       }
 
-      if (!aiText) throw new Error('AI systems currently unavailable. Try again in 30s.')
+      if (!aiText) throw new Error('Providers busy. Wait 10s.')
       
       const aiMsgId = Date.now().toString() + "_ai"
       const updatedMessages = [...newMessages, { id: aiMsgId, role: 'model', text: aiText.trim() }]
       setMessages(updatedMessages)
       syncToDatabase()
     } catch (error) {
-      setMessages(prev => [...prev, { id: 'err_'+Date.now(), role: 'model', text: `⚠️ **System Error:** ${error.message}` }])
+      console.error(error)
+      setMessages(prev => [...prev, { id: 'err_'+Date.now(), role: 'model', text: `⚠️ **System Busy:** ${error.message}` }])
     } finally {
       setLoading(false)
     }
