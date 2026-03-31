@@ -35,41 +35,47 @@ export default function GeneralAI() {
     setLoading(true)
 
     try {
-      const systemPrompt = "ZenBot. Friendly. Darija assistant created by Hamza Amirni."
+      const systemPrompt = "Mochida. Friendly Darija AI."
       let aiText = ''
 
-      // 1. Try Nexra (GPT-4) - High stability
+      // 1. Try Nexra (Fastest & Most stable for free)
       try {
         const res = await fetch('https://nexra.aryahcr.cc/api/chat/gpt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            messages: newMessages.slice(-5).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
             prompt: userMsg,
-            model: "GPT-4",
+            messages: newMessages.slice(-4).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
+            model: "GPT-4", // Stick to GPT-4 but handle failures better
             markdown: false
           })
         })
         const data = await res.json()
         if (data.gpt) aiText = data.gpt
-      } catch (e) { console.warn("Nexra failed") }
-
-      // 2. Pollinations Fallback
-      if (!aiText) {
-        try {
-          const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&cache=${Date.now()}`)
-          if (res.ok) aiText = await res.text()
-        } catch (e) { console.warn("Pollinations failed") }
+        else if (data.result) aiText = data.result
+      } catch (e) { 
+        console.warn("Nexra GPT-4 failed, trying fallback...")
       }
 
-      if (!aiText) throw new Error('Providers unavailable.')
+      // 2. Pollinations Fallback (Direct GET is very stable)
+      if (!aiText) {
+        try {
+          const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&system=${encodeURIComponent(systemPrompt)}`)
+          if (res.ok) aiText = await res.text()
+        } catch (e) {
+          console.error("All AI providers failed")
+        }
+      }
+
+      if (!aiText) throw new Error('Providers busy. Wait 5s and try again.')
       
-      const updatedMessages = [...newMessages, { id: (Date.now()+1).toString(), role: 'model', text: aiText.trim() }]
+      const aiMsgId = Date.now().toString() + "_ai"
+      const updatedMessages = [...newMessages, { id: aiMsgId, role: 'model', text: aiText.trim() }]
       setMessages(updatedMessages)
-      syncToDatabase() // Push to Supabase
+      syncToDatabase()
     } catch (error) {
       console.error(error)
-      setMessages(prev => [...prev, { id: 'err', role: 'model', text: `⚠️ Error: ${error.message}. جرب تعاود تصيفط دابا نيت.` }])
+      setMessages(prev => [...prev, { id: 'err_'+Date.now(), role: 'model', text: `⚠️ Error: ${error.message}` }])
     } finally {
       setLoading(false)
     }
