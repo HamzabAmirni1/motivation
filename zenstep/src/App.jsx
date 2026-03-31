@@ -6,6 +6,7 @@ import Navbar    from './components/Navbar'
 import Dashboard from './components/Dashboard'
 import ToolsPage from './components/ToolsPage'
 import GamesPage from './components/GamesPage'
+import NotificationTracker from './components/NotificationTracker'
 
 const pageVariants = {
   initial: { opacity: 0, y: 16 },
@@ -39,6 +40,7 @@ function AppContent() {
       <div className="blob w-[400px] h-[400px]" style={{ animationDelay:'1.5s', top:'50%', left:'40%', background:'rgba(125,211,252,0.04)' }} />
 
       <Navbar page={page} setPage={setPage} />
+      <NotificationTracker />
 
       <main className="relative z-10 pt-20 pb-16 px-4">
         <AnimatePresence mode="wait">
