@@ -17,6 +17,7 @@ export default function DailyQuest({ onXP }) {
   const [quests, setQuests] = useState(getDailyQuests())
   const completed = getCompletedQuests()
   const [justDone, setJustDone] = useState(null)
+  const [selectedQuest, setSelectedQuest] = useState(null)
 
   useEffect(() => {
     const handleUpdate = () => {
@@ -26,7 +27,8 @@ export default function DailyQuest({ onXP }) {
     return () => window.removeEventListener('ai_quests_updated', handleUpdate)
   }, [])
 
-  const handleComplete = useCallback((quest) => {
+  const handleComplete = useCallback((e, quest) => {
+    e.stopPropagation()
     if (completed.includes(quest.id)) return
     markQuestDone(quest.id)
     addXP(quest.xp)
@@ -64,7 +66,8 @@ export default function DailyQuest({ onXP }) {
               initial={{ opacity:0, x:-16 }}
               animate={{ opacity:1, x:0 }}
               transition={{ delay: i * 0.1 }}
-              className="flex items-center gap-4 p-4 rounded-xl transition-all duration-200"
+              onClick={() => setSelectedQuest(quest)}
+              className="flex items-center gap-4 p-4 rounded-xl transition-all duration-200 cursor-pointer hover:bg-[rgba(255,255,255,0.05)]"
               style={{
                 background: done ? 'rgba(110,231,183,0.08)' : 'rgba(255,255,255,0.03)',
                 border: done ? '1px solid rgba(110,231,183,0.2)' : '1px solid rgba(255,255,255,0.06)',
@@ -91,8 +94,8 @@ export default function DailyQuest({ onXP }) {
                   </motion.div>
                 ) : (
                   <motion.button key="btn" whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
-                    onClick={() => handleComplete(quest)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                    onClick={(e) => handleComplete(e, quest)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all relative z-10"
                     style={{ background:'linear-gradient(135deg,#6ee7b7,#34d399)', color:'#0a0f1a' }}>
                     كملت ✓
                   </motion.button>
@@ -102,6 +105,40 @@ export default function DailyQuest({ onXP }) {
           )
         })}
       </div>
+
+      {/* Quest Details Modal */}
+      <AnimatePresence>
+        {selectedQuest && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }} 
+              onClick={() => setSelectedQuest(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            
+            <motion.div initial={{ opacity:0, scale:0.9, y:20 }} animate={{ opacity:1, scale:1, y:0 }} exit={{ opacity:0, scale:0.9, y:20 }}
+              className="glass p-6 w-full max-w-sm relative z-10 text-right">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-4xl mb-4 mx-auto" style={{ background:'rgba(110,231,183,0.1)' }}>
+                {selectedQuest.icon}
+              </div>
+              <h3 className="text-xl font-black gradient-text mb-2">{selectedQuest.title}</h3>
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold mb-4 cat-${selectedQuest.category}`}>
+                {CAT_LABELS[selectedQuest.category] || selectedQuest.category}
+              </div>
+              
+              <div className="space-y-4 text-sm leading-relaxed" style={{ color:'var(--muted)' }}>
+                <p className="font-semibold text-[var(--text)]">كيفاش غدير ليها؟</p>
+                <p>{selectedQuest.details || selectedQuest.desc}</p>
+                <div className="p-3 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)]">
+                  <p className="text-xs">عن هاد المهمة غادي تاخد <span className="text-[#6ee7b7] font-bold">+{selectedQuest.xp} XP</span> فاش تكملها. 🔥</p>
+                </div>
+              </div>
+
+              <button onClick={() => setSelectedQuest(null)} className="btn-zen w-full mt-6 py-3">
+                صافي فهمت
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
