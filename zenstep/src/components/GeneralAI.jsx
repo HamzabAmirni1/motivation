@@ -21,41 +21,61 @@ export default function GeneralAI() {
     setLoading(true)
 
     try {
-      const systemPrompt = "You are ZenBot, a helpful AI created by Hamza Amirni. Speak in Moroccan Darija and Arabic. Be friendly and helpful."
+      const systemPrompt = "Friendly AI assistant. Reply in Moroccan Darija."
       
       const payload = {
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages.map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
+          ...messages.slice(-3).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
           { role: "user", content: userMsg }
         ],
-        model: "mistral", // Mistral is often more reliable on Pollinations free tier
+        model: "openai",
         seed: Math.floor(Math.random() * 1000)
       }
 
-      // Try POST first
-      const res = await fetch('https://text.pollinations.ai/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }).catch(() => ({ ok: false }))
-
+      // 1. Try POST (Pollinations)
       let aiText = ''
-      if (res.ok) {
-        aiText = await res.text()
-      } else {
-        // Fallback GET - more reliable for CORS in some browsers
-        const getUrl = `https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=mistral&system=${encodeURIComponent(systemPrompt)}`
-        const getRes = await fetch(getUrl)
-        if (!getRes.ok) throw new Error('API down')
-        aiText = await getRes.text()
+      try {
+        const res = await fetch('https://text.pollinations.ai/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(10000)
+        })
+        if (res.ok) aiText = await res.text()
+      } catch (e) { console.error("Pollinations POST failed") }
+
+      // 2. Try GET (Pollinations) - Simple version
+      if (!aiText) {
+        try {
+          const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&seed=${Date.now()}`, {
+            signal: AbortSignal.timeout(10000)
+          })
+          if (res.ok) aiText = await res.text()
+        } catch (e) { console.error("Pollinations GET failed") }
       }
 
-      if (!aiText) throw new Error('No response')
+      // 3. Try LuminAI (Fallback from chatbot script)
+      if (!aiText) {
+        try {
+          const res = await fetch('https://luminai.my.id/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: userMsg, user: "zenbot_user" }),
+            signal: AbortSignal.timeout(10000)
+          })
+          if (res.ok) {
+            const data = await res.json()
+            aiText = data.result
+          }
+        } catch (e) { console.error("LuminAI failed") }
+      }
+
+      if (!aiText) throw new Error('All AI providers failed')
       setMessages(prev => [...prev, { role: 'model', text: aiText.trim() }])
     } catch (error) {
       console.error(error)
-      setMessages(prev => [...prev, { role: 'model', text: 'سمح ليا، كاين شي ضغط دابا على السيرفر. عاود صيفط الميساج دابا نيت. 🙏' }])
+      setMessages(prev => [...prev, { role: 'model', text: 'سمح ليا، كاين دابا ضغط كبير. عاود صيفط الميساج دابا نيت، أنا معاك. 🙏' }])
     } finally {
       setLoading(false)
     }
