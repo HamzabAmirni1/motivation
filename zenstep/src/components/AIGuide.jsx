@@ -37,22 +37,35 @@ Respond strictly in JSON format matching this schema AND NOTHING ELSE:
 }
 Available categories string: movement, mindfulness, self-care, social, mental, creative. Choose a matching emoji for icon. Always provide exactly 3 quests.`
 
+      const payload = {
+        messages: [
+          { role: "system", content: prompt },
+          ...messages.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
+          { role: "user", content: userMsg }
+        ],
+        model: "openai",
+        jsonMode: true,
+        code: "hamza-amirni-bot",
+        seed: Math.floor(Math.random() * 1000)
+      }
+
       const res = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            { role: "system", content: prompt },
-            ...messages.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
-            { role: "user", content: userMsg }
-          ],
-          model: "openai",
-          jsonMode: true,
-          seed: Math.floor(Math.random() * 1000)
-        })
+        body: JSON.stringify(payload)
       })
 
-      const textResponse = await res.text()
+      let textResponse;
+      if (!res.ok) {
+        // Fallback GET
+        const getUrl = `https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&system=${encodeURIComponent(prompt)}&seed=${Math.floor(Math.random() * 1000)}&jsonMode=true`
+        const getRes = await fetch(getUrl)
+        if (!getRes.ok) throw new Error('API Error')
+        textResponse = await getRes.text()
+      } else {
+        textResponse = await res.text()
+      }
+      
       // Clean up markdown syntax if Pollinations wraps it
       let cleanResp = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim()
       

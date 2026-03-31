@@ -23,22 +23,34 @@ export default function GeneralAI() {
     try {
       const systemPrompt = "You are a helpful and friendly AI assistant. You speak fluently in Moroccan Darija and Arabic. Your name is ZenBot. You were created by Hamza Amirni. Be very empathetic, funny at times, and always helpful."
       
+      const payload = {
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages.map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
+          { role: "user", content: userMsg }
+        ],
+        model: "openai",
+        code: "hamza-amirni-bot",
+        seed: Math.floor(Math.random() * 1000)
+      }
+
       const res = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...messages.map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
-            { role: "user", content: userMsg }
-          ],
-          model: "openai",
-          seed: Math.floor(Math.random() * 1000)
-        })
+        body: JSON.stringify(payload)
       })
 
-      const aiText = await res.text()
-      setMessages(prev => [...prev, { role: 'model', text: aiText.trim() }])
+      if (!res.ok) {
+        // Fallback to simple GET if POST is blocked or failing
+        const getUrl = `https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&system=${encodeURIComponent(systemPrompt)}&seed=${Math.floor(Math.random() * 1000)}`
+        const getRes = await fetch(getUrl)
+        if (!getRes.ok) throw new Error('API Error')
+        const aiText = await getRes.text()
+        setMessages(prev => [...prev, { role: 'model', text: aiText.trim() }])
+      } else {
+        const aiText = await res.text()
+        setMessages(prev => [...prev, { role: 'model', text: aiText.trim() }])
+      }
     } catch (error) {
       console.error(error)
       setMessages(prev => [...prev, { role: 'model', text: 'سمح ليا، وقع شي مشكل ف الاتصال. عاود جرب من بعد. 🙏' }])
