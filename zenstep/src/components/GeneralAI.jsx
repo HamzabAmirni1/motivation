@@ -21,43 +21,38 @@ export default function GeneralAI() {
     setLoading(true)
 
     try {
-      const systemPrompt = "ZenBot. Friendly. Darija."
-      const payload = {
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages.slice(-2).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
-          { role: "user", content: userMsg }
-        ],
-        model: "openai"
-      }
-
       let aiText = ''
-      
-      // 1. Try Pollinations POST
+
+      // 1. Try Nexra AI (Very reliable free provider)
       try {
-        const res = await fetch('https://text.pollinations.ai/', {
+        const res = await fetch('https://nexra.aryahcr.cc/api/chat/gpt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            messages: messages.slice(-3).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
+            prompt: userMsg,
+            model: "GPT-4",
+            markdown: false
+          })
         })
-        if (res.ok) aiText = await res.text()
-      } catch (e) { console.warn("POST failed") }
+        const data = await res.json()
+        if (data.gpt) aiText = data.gpt
+      } catch (e) { console.warn("Nexra failed") }
 
       // 2. Try Pollinations GET (Ultra simple)
       if (!aiText) {
         try {
-          const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai`)
+          const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&cache=${Date.now()}`)
           if (res.ok) aiText = await res.text()
-        } catch (e) { console.warn("GET failed") }
+        } catch (e) { console.warn("Pollinations failed") }
       }
 
-      // 3. Try Gemini (via an unofficial proxy if available, or just fail)
-      if (!aiText) throw new Error('Connection refused by AI providers. Check your internet or ad-blocker.')
+      if (!aiText) throw new Error('Providers blocked. Check Adblock/VPN.')
       
       setMessages(prev => [...prev, { role: 'model', text: aiText.trim() }])
     } catch (error) {
       console.error(error)
-      setMessages(prev => [...prev, { role: 'model', text: `⚠️ Error: ${error.message}\n\nجرب تحبس Adblock آو VPN إلا كان خدام، وعاود صيفط الميساج.` }])
+      setMessages(prev => [...prev, { role: 'model', text: `⚠️ Error: ${error.message}\n\nجرب تحبس Adblock آو VPN إلا كان خدام.` }])
     } finally {
       setLoading(false)
     }
