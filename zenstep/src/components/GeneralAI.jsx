@@ -21,7 +21,7 @@ export default function GeneralAI() {
     setLoading(true)
 
     try {
-      const systemPrompt = "You are a helpful and friendly AI assistant. You speak fluently in Moroccan Darija and Arabic. Your name is ZenBot. You were created by Hamza Amirni. Be very empathetic, funny at times, and always helpful."
+      const systemPrompt = "You are ZenBot, a helpful AI created by Hamza Amirni. Speak in Moroccan Darija and Arabic. Be friendly and helpful."
       
       const payload = {
         messages: [
@@ -29,31 +29,33 @@ export default function GeneralAI() {
           ...messages.map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
           { role: "user", content: userMsg }
         ],
-        model: "openai",
-        code: "hamza-amirni-bot",
+        model: "mistral", // Mistral is often more reliable on Pollinations free tier
         seed: Math.floor(Math.random() * 1000)
       }
 
+      // Try POST first
       const res = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      })
+      }).catch(() => ({ ok: false }))
 
-      if (!res.ok) {
-        // Fallback to simple GET if POST is blocked or failing
-        const getUrl = `https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&system=${encodeURIComponent(systemPrompt)}&seed=${Math.floor(Math.random() * 1000)}`
-        const getRes = await fetch(getUrl)
-        if (!getRes.ok) throw new Error('API Error')
-        const aiText = await getRes.text()
-        setMessages(prev => [...prev, { role: 'model', text: aiText.trim() }])
+      let aiText = ''
+      if (res.ok) {
+        aiText = await res.text()
       } else {
-        const aiText = await res.text()
-        setMessages(prev => [...prev, { role: 'model', text: aiText.trim() }])
+        // Fallback GET - more reliable for CORS in some browsers
+        const getUrl = `https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=mistral&system=${encodeURIComponent(systemPrompt)}`
+        const getRes = await fetch(getUrl)
+        if (!getRes.ok) throw new Error('API down')
+        aiText = await getRes.text()
       }
+
+      if (!aiText) throw new Error('No response')
+      setMessages(prev => [...prev, { role: 'model', text: aiText.trim() }])
     } catch (error) {
       console.error(error)
-      setMessages(prev => [...prev, { role: 'model', text: 'سمح ليا، وقع شي مشكل ف الاتصال. عاود جرب من بعد. 🙏' }])
+      setMessages(prev => [...prev, { role: 'model', text: 'سمح ليا، كاين شي ضغط دابا على السيرفر. عاود صيفط الميساج دابا نيت. 🙏' }])
     } finally {
       setLoading(false)
     }

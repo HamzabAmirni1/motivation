@@ -43,28 +43,30 @@ Available categories string: movement, mindfulness, self-care, social, mental, c
           ...messages.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
           { role: "user", content: userMsg }
         ],
-        model: "openai",
+        model: "mistral",
         jsonMode: true,
-        code: "hamza-amirni-bot",
         seed: Math.floor(Math.random() * 1000)
       }
 
+      // Try POST first
+      let textResponse = ''
       const res = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      })
+      }).catch(() => ({ ok: false }))
 
-      let textResponse;
-      if (!res.ok) {
-        // Fallback GET
-        const getUrl = `https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&system=${encodeURIComponent(prompt)}&seed=${Math.floor(Math.random() * 1000)}&jsonMode=true`
-        const getRes = await fetch(getUrl)
-        if (!getRes.ok) throw new Error('API Error')
-        textResponse = await getRes.text()
-      } else {
+      if (res.ok) {
         textResponse = await res.text()
+      } else {
+        // Fallback GET
+        const getUrl = `https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=mistral&system=${encodeURIComponent(prompt)}&jsonMode=true&seed=${Math.floor(Math.random() * 1000)}`
+        const getRes = await fetch(getUrl)
+        if (!getRes.ok) throw new Error('API down')
+        textResponse = await getRes.text()
       }
+      
+      if (!textResponse) throw new Error('Empty response')
       
       // Clean up markdown syntax if Pollinations wraps it
       let cleanResp = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim()
