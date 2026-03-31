@@ -8,6 +8,7 @@ import ToolsPage from './components/ToolsPage'
 import GamesPage from './components/GamesPage'
 import NotificationTracker from './components/NotificationTracker'
 import AIGuide from './components/AIGuide'
+import Developer from './components/Developer'
 
 const pageVariants = {
   initial: { opacity: 0, y: 16 },
@@ -63,6 +64,11 @@ function AppContent() {
           {page === 'games' && (
             <motion.div key="games" variants={pageVariants} initial="initial" animate="animate" exit="exit">
               <GamesPage />
+            </motion.div>
+          )}
+          {page === 'developer' && (
+            <motion.div key="dev" variants={pageVariants} initial="initial" animate="animate" exit="exit">
+              <Developer />
             </motion.div>
           )}
         </AnimatePresence>

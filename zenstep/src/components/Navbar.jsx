@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { id:'dashboard', label:'الرئيسية', icon:'🏠' },
   { id:'tools',     label:'الأدوات',   icon:'🧠' },
   { id:'games',     label:'الألعاب',   icon:'🎮' },
+  { id:'developer', label:'المطور',   icon:'👨‍💻' },
 ]
 
 export default function Navbar({ page, setPage }) {
