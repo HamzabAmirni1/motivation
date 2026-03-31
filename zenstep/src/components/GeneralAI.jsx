@@ -38,37 +38,45 @@ export default function GeneralAI() {
       const systemPrompt = "Mochida. Friendly Darija AI."
       let aiText = ''
 
-      try {
-        const res = await fetch('https://nexra.aryahcr.cc/api/chat/gpt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: userMsg,
-            messages: newMessages.slice(-5).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
-            model: "GPT-4",
-            markdown: true
+      // 1. Try Nexra with multi-model fallback
+      const models = ['GPT-4', 'CHATGPT', 'GEMINI']
+      for (const model of models) {
+        if (aiText) break
+        try {
+          const res = await fetch('https://nexra.aryahcr.cc/api/chat/gpt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: userMsg,
+              messages: newMessages.slice(-5).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
+              model: model,
+              markdown: true
+            })
           })
-        })
-        const data = await res.json()
-        if (data.gpt) aiText = data.gpt
-        else if (data.result) aiText = data.result
-      } catch (e) { console.warn("Nexra failed") }
+          const data = await res.json()
+          if (data.gpt || data.result) aiText = data.gpt || data.result
+        } catch (e) {
+          console.warn(`Nexra ${model} failed, trying next...`)
+        }
+      }
 
+      // 2. Pollinations Final Fallback
       if (!aiText) {
         try {
           const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&system=${encodeURIComponent(systemPrompt)}`)
           if (res.ok) aiText = await res.text()
-        } catch (e) { console.error("All providers failed") }
+        } catch (e) { console.error("Pollinations failed") }
       }
 
-      if (!aiText) throw new Error('Providers busy. Try again.')
+      if (!aiText) throw new Error('Systems are currently busy. Please wait 10 seconds and try again.')
       
       const aiMsgId = Date.now().toString() + "_ai"
       const updatedMessages = [...newMessages, { id: aiMsgId, role: 'model', text: aiText.trim() }]
       setMessages(updatedMessages)
       syncToDatabase()
     } catch (error) {
-      setMessages(prev => [...prev, { id: 'err_'+Date.now(), role: 'model', text: `⚠️ **Error:** ${error.message}` }])
+      console.error(error)
+      setMessages(prev => [...prev, { id: 'err_'+Date.now(), role: 'model', text: `⚠️ **System Busy:** ${error.message}` }])
     } finally {
       setLoading(false)
     }

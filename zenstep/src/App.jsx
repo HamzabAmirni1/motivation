@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Auth      from './components/Auth'
@@ -19,7 +19,11 @@ const pageVariants = {
 
 function AppContent() {
   const { user, loading } = useAuth()
-  const [page, setPage]   = useState('dashboard')
+  const [page, setPage]   = useState(() => localStorage.getItem('zs_active_page') || 'dashboard')
+
+  useEffect(() => {
+    localStorage.setItem('zs_active_page', page)
+  }, [page])
 
   if (loading) {
     return (
