@@ -21,61 +21,43 @@ export default function GeneralAI() {
     setLoading(true)
 
     try {
-      const systemPrompt = "Friendly AI assistant. Reply in Moroccan Darija."
-      
+      const systemPrompt = "ZenBot. Friendly. Darija."
       const payload = {
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages.slice(-3).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
+          ...messages.slice(-2).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
           { role: "user", content: userMsg }
         ],
-        model: "openai",
-        seed: Math.floor(Math.random() * 1000)
+        model: "openai"
       }
 
-      // 1. Try POST (Pollinations)
       let aiText = ''
+      
+      // 1. Try Pollinations POST
       try {
         const res = await fetch('https://text.pollinations.ai/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(10000)
+          body: JSON.stringify(payload)
         })
         if (res.ok) aiText = await res.text()
-      } catch (e) { console.error("Pollinations POST failed") }
+      } catch (e) { console.warn("POST failed") }
 
-      // 2. Try GET (Pollinations) - Simple version
+      // 2. Try Pollinations GET (Ultra simple)
       if (!aiText) {
         try {
-          const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&seed=${Date.now()}`, {
-            signal: AbortSignal.timeout(10000)
-          })
+          const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai`)
           if (res.ok) aiText = await res.text()
-        } catch (e) { console.error("Pollinations GET failed") }
+        } catch (e) { console.warn("GET failed") }
       }
 
-      // 3. Try LuminAI (Fallback from chatbot script)
-      if (!aiText) {
-        try {
-          const res = await fetch('https://luminai.my.id/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: userMsg, user: "zenbot_user" }),
-            signal: AbortSignal.timeout(10000)
-          })
-          if (res.ok) {
-            const data = await res.json()
-            aiText = data.result
-          }
-        } catch (e) { console.error("LuminAI failed") }
-      }
-
-      if (!aiText) throw new Error('All AI providers failed')
+      // 3. Try Gemini (via an unofficial proxy if available, or just fail)
+      if (!aiText) throw new Error('Connection refused by AI providers. Check your internet or ad-blocker.')
+      
       setMessages(prev => [...prev, { role: 'model', text: aiText.trim() }])
     } catch (error) {
       console.error(error)
-      setMessages(prev => [...prev, { role: 'model', text: 'سمح ليا، كاين دابا ضغط كبير. عاود صيفط الميساج دابا نيت، أنا معاك. 🙏' }])
+      setMessages(prev => [...prev, { role: 'model', text: `⚠️ Error: ${error.message}\n\nجرب تحبس Adblock آو VPN إلا كان خدام، وعاود صيفط الميساج.` }])
     } finally {
       setLoading(false)
     }
