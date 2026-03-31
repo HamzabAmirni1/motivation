@@ -9,6 +9,7 @@ import GamesPage from './components/GamesPage'
 import NotificationTracker from './components/NotificationTracker'
 import AIGuide from './components/AIGuide'
 import Developer from './components/Developer'
+import GeneralAI from './components/GeneralAI'
 
 const pageVariants = {
   initial: { opacity: 0, y: 16 },
@@ -49,6 +50,11 @@ function AppContent() {
           {page === 'dashboard' && (
             <motion.div key="dash" variants={pageVariants} initial="initial" animate="animate" exit="exit">
               <Dashboard />
+            </motion.div>
+          )}
+          {page === 'zenbot' && (
+            <motion.div key="zenbot" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="h-full">
+              <GeneralAI />
             </motion.div>
           )}
           {page === 'guide' && (

@@ -5,6 +5,7 @@ import { calculateLevel } from '../lib/gamification'
 
 const NAV_ITEMS = [
   { id:'dashboard', label:'الرئيسية', icon:'🏠' },
+  { id:'zenbot',    label:'الدردشة',   icon:'🤖' },
   { id:'tools',     label:'الأدوات',   icon:'🧠' },
   { id:'games',     label:'الألعاب',   icon:'🎮' },
   { id:'developer', label:'المطور',   icon:'👨‍💻' },
