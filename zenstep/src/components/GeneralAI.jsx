@@ -1,35 +1,48 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function GeneralAI() {
-  const [messages, setMessages] = useState([
-    { role: 'model', text: 'أهلاً! أنا المساعد الذكي ديالك. تقدر تسولني على أي حاجة بغيتي، أنا هنا باش نعاونك ونقصر معاك. 😊' }
-  ])
+  const { syncToDatabase } = useAuth()
+  
+  // Load initial messages from localStorage
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem('zs_chat')
+    return saved ? JSON.parse(saved) : [
+      { role: 'model', text: 'أهلاً! أنا المساعد الذكي ديالك. تقدر تسولني على أي حاجة بغيتي، أنا هنا باش نعاونك ونقصر معاك. 😊' }
+    ]
+  })
+  
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const endRef = useRef(null)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // Persistence
+    localStorage.setItem('zs_chat', JSON.stringify(messages))
   }, [messages, loading])
 
   const handleSend = async () => {
     if (!input.trim() || loading) return
     const userMsg = input.trim()
     setInput('')
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }])
+    
+    const newMessages = [...messages, { role: 'user', text: userMsg }]
+    setMessages(newMessages)
     setLoading(true)
 
     try {
+      const systemPrompt = "ZenBot. Friendly. Darija assistant created by Hamza Amirni."
       let aiText = ''
 
-      // 1. Try Nexra AI (Very reliable free provider)
+      // 1. Try Nexra (GPT-4) - High stability
       try {
         const res = await fetch('https://nexra.aryahcr.cc/api/chat/gpt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            messages: messages.slice(-3).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
+            messages: newMessages.slice(-5).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
             prompt: userMsg,
             model: "GPT-4",
             markdown: false
@@ -39,7 +52,7 @@ export default function GeneralAI() {
         if (data.gpt) aiText = data.gpt
       } catch (e) { console.warn("Nexra failed") }
 
-      // 2. Try Pollinations GET (Ultra simple)
+      // 2. Pollinations Fallback
       if (!aiText) {
         try {
           const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&cache=${Date.now()}`)
@@ -47,28 +60,45 @@ export default function GeneralAI() {
         } catch (e) { console.warn("Pollinations failed") }
       }
 
-      if (!aiText) throw new Error('Providers blocked. Check Adblock/VPN.')
+      if (!aiText) throw new Error('Providers unavailable. Check internet/adblock.')
       
-      setMessages(prev => [...prev, { role: 'model', text: aiText.trim() }])
+      const updatedMessages = [...newMessages, { role: 'model', text: aiText.trim() }]
+      setMessages(updatedMessages)
+      syncToDatabase() // Push to Supabase
     } catch (error) {
       console.error(error)
-      setMessages(prev => [...prev, { role: 'model', text: `⚠️ Error: ${error.message}\n\nجرب تحبس Adblock آو VPN إلا كان خدام.` }])
+      setMessages(prev => [...prev, { role: 'model', text: `⚠️ Error: ${error.message}. جرب تعاود تصيفط دابا نيت.` }])
     } finally {
       setLoading(false)
     }
   }
 
+  const clearChat = () => {
+    if (window.confirm('واش بصح بغيتي تمسح كاع الميساجات؟')) {
+      const reset = [{ role: 'model', text: 'أهلاً! أنا هنا باش نعاونك من جديد. 😊' }]
+      setMessages(reset)
+      localStorage.setItem('zs_chat', JSON.stringify(reset))
+      syncToDatabase()
+    }
+  }
+
   return (
     <div className="max-w-3xl mx-auto flex flex-col h-[80vh]">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 flex items-center gap-3">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#6ee7b7] to-[#a78bfa] flex items-center justify-center text-2xl shadow-lg">
-          🤖
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#6ee7b7] to-[#a78bfa] flex items-center justify-center text-xl shadow-lg">
+            🤖
+          </div>
+          <div>
+            <h1 className="text-xl font-black gradient-text">ZenBot AI</h1>
+            <p style={{ color: 'var(--muted)' }} className="text-[10px]">مساعدك الذكي الشخصي</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-black gradient-text">ZenBot AI</h1>
-          <p style={{ color: 'var(--muted)' }} className="text-xs">مساعدك الذكي الشخصي</p>
-        </div>
-      </motion.div>
+        
+        <button onClick={clearChat} className="text-xs opacity-50 hover:opacity-100 transition-opacity bg-[rgba(255,255,255,0.05)] px-3 py-1.5 rounded-full border border-[rgba(255,255,255,0.1)]">
+          🗑️ مسح المحادثة
+        </button>
+      </div>
 
       {/* Chat Box */}
       <div className="flex-1 overflow-y-auto glass p-6 mb-4 flex flex-col gap-4 rounded-3xl relative shadow-inner">
@@ -114,10 +144,6 @@ export default function GeneralAI() {
           {loading ? '...' : 'إرسال'}
         </button>
       </div>
-      
-      <p className="text-[10px] text-center mt-4 opacity-30">
-        الذكاء الاصطناعي يمكن أن يخطئ. تأكد من المعلومات المهمة.
-      </p>
     </div>
   )
 }

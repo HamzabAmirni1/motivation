@@ -9,6 +9,7 @@ const LS_PROFILE = 'zs_profile'
 const LS_QUESTS  = 'zs_quests'
 const LS_MOODS   = 'zs_moods'
 const LS_AI      = 'zs_custom_quests'
+const LS_CHAT    = 'zs_chat'
 
 function makeDefault(user) {
   return {
@@ -29,6 +30,7 @@ export function AuthProvider({ children }) {
     const quests_data = JSON.parse(localStorage.getItem(LS_QUESTS) || '{}')
     const mood_data = JSON.parse(localStorage.getItem(LS_MOODS) || '[]')
     const custom_ai_quests = JSON.parse(localStorage.getItem(LS_AI) || 'null')
+    const chat_data = JSON.parse(localStorage.getItem(LS_CHAT) || '[]')
 
     await supabase.from('profiles').upsert([{ 
       id: p.id, 
@@ -40,7 +42,8 @@ export function AuthProvider({ children }) {
       last_quest_date: p.last_quest_date,
       quests_data: quests_data,
       mood_data: mood_data,
-      custom_ai_quests: custom_ai_quests
+      custom_ai_quests: custom_ai_quests,
+      chat_data: chat_data
     }])
   }
 
@@ -56,6 +59,7 @@ export function AuthProvider({ children }) {
           if (data.quests_data) localStorage.setItem(LS_QUESTS, JSON.stringify(data.quests_data))
           if (data.mood_data) localStorage.setItem(LS_MOODS, JSON.stringify(data.mood_data))
           if (data.custom_ai_quests) localStorage.setItem(LS_AI, JSON.stringify(data.custom_ai_quests))
+          if (data.chat_data) localStorage.setItem(LS_CHAT, JSON.stringify(data.chat_data))
           
           window.dispatchEvent(new CustomEvent('ai_quests_updated'))
           return
