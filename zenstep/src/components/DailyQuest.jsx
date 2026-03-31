@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
 import { getDailyQuests } from '../lib/quests'
@@ -14,9 +14,17 @@ const CAT_LABELS = {
 
 export default function DailyQuest({ onXP }) {
   const { getCompletedQuests, markQuestDone, addXP, updateStreak } = useAuth()
-  const quests    = getDailyQuests()
+  const [quests, setQuests] = useState(getDailyQuests())
   const completed = getCompletedQuests()
   const [justDone, setJustDone] = useState(null)
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setQuests(getDailyQuests())
+    }
+    window.addEventListener('ai_quests_updated', handleUpdate)
+    return () => window.removeEventListener('ai_quests_updated', handleUpdate)
+  }, [])
 
   const handleComplete = useCallback((quest) => {
     if (completed.includes(quest.id)) return

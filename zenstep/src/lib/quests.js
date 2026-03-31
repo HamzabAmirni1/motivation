@@ -37,9 +37,23 @@ export const QUEST_POOL = [
 
 /**
  * Returns 3 quests deterministically for a given date (seeded shuffle).
+ * Or returns the AI generated quests if they exist for today.
  * @param {Date} [date]
  */
 export function getDailyQuests(date = new Date()) {
+  const todayStr = date.toISOString().split('T')[0]
+  try {
+    const rawCustom = localStorage.getItem('zs_custom_quests')
+    if (rawCustom) {
+      const custom = JSON.parse(rawCustom)
+      if (custom && custom.date === todayStr && custom.quests && custom.quests.length > 0) {
+        return custom.quests
+      }
+    }
+  } catch (e) {
+    console.error("Error parsing custom quests", e)
+  }
+
   const seed = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate()
   const seeded = [...QUEST_POOL].map((q, i) => ({ q, sort: ((seed * (i + 1) * 1664525 + 1013904223) >>> 0) }))
   seeded.sort((a, b) => a.sort - b.sort)

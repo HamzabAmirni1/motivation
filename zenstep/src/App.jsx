@@ -7,6 +7,7 @@ import Dashboard from './components/Dashboard'
 import ToolsPage from './components/ToolsPage'
 import GamesPage from './components/GamesPage'
 import NotificationTracker from './components/NotificationTracker'
+import AIGuide from './components/AIGuide'
 
 const pageVariants = {
   initial: { opacity: 0, y: 16 },
@@ -47,6 +48,11 @@ function AppContent() {
           {page === 'dashboard' && (
             <motion.div key="dash" variants={pageVariants} initial="initial" animate="animate" exit="exit">
               <Dashboard />
+            </motion.div>
+          )}
+          {page === 'guide' && (
+            <motion.div key="guide" variants={pageVariants} initial="initial" animate="animate" exit="exit">
+              <AIGuide setPage={setPage} />
             </motion.div>
           )}
           {page === 'tools' && (

@@ -8,6 +8,7 @@ export const useAuth = () => useContext(AuthContext)
 const LS_PROFILE = 'zs_profile'
 const LS_QUESTS  = 'zs_quests'
 const LS_MOODS   = 'zs_moods'
+const LS_AI      = 'zs_custom_quests'
 
 function makeDefault(user) {
   return {
@@ -23,8 +24,44 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const loadProfile = useCallback((u) => {
+  const syncToDatabase = async (p = profile) => {
+    if (!p || p.id === 'guest') return
+    const quests_data = JSON.parse(localStorage.getItem(LS_QUESTS) || '{}')
+    const mood_data = JSON.parse(localStorage.getItem(LS_MOODS) || '[]')
+    const custom_ai_quests = JSON.parse(localStorage.getItem(LS_AI) || 'null')
+
+    await supabase.from('profiles').upsert([{ 
+      id: p.id, 
+      username: p.username, 
+      avatar_url: p.avatar_url, 
+      xp: p.xp, 
+      level: p.level, 
+      streak_count: p.streak_count, 
+      last_quest_date: p.last_quest_date,
+      quests_data: quests_data,
+      mood_data: mood_data,
+      custom_ai_quests: custom_ai_quests
+    }])
+  }
+
+  const loadProfile = useCallback(async (u) => {
     try {
+      if (u) {
+        const { data, error } = await supabase.from('profiles').select('*').eq('id', u.id).single()
+        if (data && !error) {
+          const newProfile = { id: u.id, username: data.username, avatar_url: data.avatar_url, xp: data.xp, level: data.level, streak_count: data.streak_count, last_quest_date: data.last_quest_date }
+          setProfile(newProfile)
+          localStorage.setItem(LS_PROFILE, JSON.stringify(newProfile))
+          
+          if (data.quests_data) localStorage.setItem(LS_QUESTS, JSON.stringify(data.quests_data))
+          if (data.mood_data) localStorage.setItem(LS_MOODS, JSON.stringify(data.mood_data))
+          if (data.custom_ai_quests) localStorage.setItem(LS_AI, JSON.stringify(data.custom_ai_quests))
+          
+          window.dispatchEvent(new CustomEvent('ai_quests_updated'))
+          return
+        }
+      }
+      
       const raw = localStorage.getItem(LS_PROFILE)
       const p   = raw ? JSON.parse(raw) : makeDefault(u)
       setProfile({ ...p, level: calculateLevel(p.xp || 0).level })
@@ -37,6 +74,7 @@ export function AuthProvider({ children }) {
     const updated = { ...p, level: calculateLevel(p.xp || 0).level }
     setProfile(updated)
     localStorage.setItem(LS_PROFILE, JSON.stringify(updated))
+    syncToDatabase(updated)
     return updated
   }, [])
 
@@ -109,6 +147,7 @@ export function AuthProvider({ children }) {
     if (!all[today]) all[today] = []
     if (!all[today].includes(questId)) all[today].push(questId)
     localStorage.setItem(LS_QUESTS, JSON.stringify(all))
+    syncToDatabase()
   }, [])
 
   const getMoodLogs = useCallback(() => {
@@ -120,12 +159,13 @@ export function AuthProvider({ children }) {
     const entry = { score, label, note, date: new Date().toISOString() }
     const updated = [entry, ...logs].slice(0, 30)
     localStorage.setItem(LS_MOODS, JSON.stringify(updated))
+    syncToDatabase()
     return entry
   }, [getMoodLogs])
 
   return (
     <AuthContext.Provider value={{
-      user, profile, loading,
+      user, profile, loading, syncToDatabase,
       signInWithGoogle, signInWithEmail, signUpWithEmail, signOut,
       addXP, updateStreak,
       getCompletedQuests, markQuestDone,
