@@ -2,6 +2,10 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
 
+// Real Direct Gemini Key from user script
+const GEMINI_KEY = "AIzaSyBKKEI-q1qM7mRz0cHA9Qs5KA2hM2ElR8U"
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`
+
 export default function AIGuide({ setPage }) {
   const { syncToDatabase } = useAuth()
   const [messages, setMessages] = useState([
@@ -18,14 +22,14 @@ export default function AIGuide({ setPage }) {
   }, [messages, loading])
 
   const handleSend = async () => {
-    if (!input.trim()) return
+    if (!input.trim() || loading) return
     const userMsg = input.trim()
     setInput('')
     setMessages(prev => [...prev, { role: 'user', text: userMsg }])
     setLoading(true)
 
     try {
-      const prompt = `You are a Moroccan psychologist and positive life coach. Reply ENTIRELY in Moroccan Darija.
+      const systemPrompt = `You are a Moroccan psychologist and positive life coach. Reply ENTIRELY in Moroccan Darija.
 The user needs help. Give them a highly empathetic small response, and then create a 3-task program specifically tailored to what they said to help them feel better today.
 
 Respond strictly in JSON format matching this schema AND NOTHING ELSE:
@@ -38,40 +42,31 @@ Respond strictly in JSON format matching this schema AND NOTHING ELSE:
 Available categories string: movement, mindfulness, self-care, social, mental, creative. Choose a matching emoji for icon. Always provide exactly 3 quests.`
 
       const payload = {
-        messages: [
-          { role: "system", content: prompt },
-          ...messages.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
-          { role: "user", content: userMsg }
+        contents: [
+          { role: "user", parts: [{ text: systemPrompt }] },
+          ...messages.filter(m => m.role !== 'system').map(m => ({
+            role: m.role === 'model' ? "model" : "user",
+            parts: [{ text: m.text }]
+          })),
+          { role: "user", parts: [{ text: userMsg }] }
         ],
-        model: "mistral",
-        jsonMode: true,
-        seed: Math.floor(Math.random() * 1000)
+        generationConfig: {
+          response_mime_type: "application/json",
+          temperature: 0.7,
+        }
       }
 
-      // Try POST first
-      let textResponse = ''
-      const res = await fetch('https://text.pollinations.ai/', {
+      const res = await fetch(GEMINI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      }).catch(() => ({ ok: false }))
+      })
 
-      if (res.ok) {
-        textResponse = await res.text()
-      } else {
-        // Fallback GET
-        const getUrl = `https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=mistral&system=${encodeURIComponent(prompt)}&jsonMode=true&seed=${Math.floor(Math.random() * 1000)}`
-        const getRes = await fetch(getUrl)
-        if (!getRes.ok) throw new Error('API down')
-        textResponse = await getRes.text()
-      }
+      if (!res.ok) throw new Error('Gemini API Error')
       
-      if (!textResponse) throw new Error('Empty response')
-      
-      // Clean up markdown syntax if Pollinations wraps it
-      let cleanResp = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim()
-      
-      const aiResponse = JSON.parse(cleanResp)
+      const data = await res.json()
+      const textResponse = data.candidates[0].content.parts[0].text
+      const aiResponse = JSON.parse(textResponse)
 
       setMessages(prev => [...prev, { role: 'model', text: aiResponse.message }])
 
@@ -79,23 +74,18 @@ Available categories string: movement, mindfulness, self-care, social, mental, c
         const customQuests = aiResponse.quests.map((q, i) => ({ ...q, id: `ai_quest_${Date.now()}_${i}` }))
         const today = new Date().toISOString().split('T')[0]
         
-        // Save to local storage
         localStorage.setItem('zs_custom_quests', JSON.stringify({ date: today, quests: customQuests }))
         syncToDatabase()
-        
-        // Notify the app about the new quests
         window.dispatchEvent(new CustomEvent('ai_quests_updated'))
         
-        // Schedule browser notification if permitted
         if ("Notification" in window && Notification.permission === "granted") {
           setTimeout(() => {
             new Notification("تذكير من المرشد الذكي 🤖", {
               body: "قاديت ليك برنامج مخصص، سير شوفو وبدا أول مهمة باش تحس براسك أحسن!",
               vibrate: [200, 100, 200]
             })
-          }, 5000) // Send notification reminder in 5 seconds
+          }, 5000)
         }
-
         setHasGenerated(true)
       }
 
@@ -115,23 +105,22 @@ Available categories string: movement, mindfulness, self-care, social, mental, c
   return (
     <div className="max-w-2xl mx-auto flex flex-col h-[75vh]">
       <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }} className="mb-4 text-center">
-        <h1 className="text-3xl font-black mb-1 gradient-text">المرشد الذكي AI</h1>
-        <p style={{ color:'var(--muted)' }} className="text-sm">غنجاوبك ونصاوب ليك برنامج مناسب لحالتك</p>
+        <h1 className="text-3xl font-black mb-1 gradient-text font-serif">المرشد الذكي AI</h1>
+        <p style={{ color:'var(--muted)' }} className="text-sm opacity-60 uppercase tracking-widest font-bold">Zen Personal Guide</p>
       </motion.div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto glass p-4 mb-4 flex flex-col gap-4 rounded-2xl relative">
+      <div className="flex-1 overflow-y-auto glass p-6 mb-4 flex flex-col gap-6 rounded-3xl relative shadow-inner">
         {messages.map((m, i) => (
-          <motion.div key={i} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} 
-            className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${m.role === 'model' ? 'self-start' : 'self-end bg-[rgba(110,231,183,0.15)] text-[#6ee7b7] border border-[rgba(110,231,183,0.3)]'}`}
-            style={m.role === 'model' ? { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' } : {}}
+          <motion.div key={i} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} 
+            className={`max-w-[85%] p-4 rounded-3xl text-sm leading-relaxed ${m.role === 'model' ? 'self-start bg-white/5 border border-white/5' : 'self-end bg-gradient-to-br from-[#34d399] to-[#059669] text-white font-medium border border-white/10 shadow-lg'}`}
           >
             {m.text}
           </motion.div>
         ))}
         {loading && (
-          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} className="self-start text-[var(--muted)] text-xs p-2">
-            كيفكر المرجو الانتظار... ⏳
+          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} className="self-start text-[var(--muted)] text-xs p-2 glass rounded-xl">
+            الذكاء الاصطناعي يفكر... ⏳
           </motion.div>
         )}
         <div ref={endRef} />
@@ -140,14 +129,13 @@ Available categories string: movement, mindfulness, self-care, social, mental, c
       <AnimatePresence>
         {hasGenerated && (
           <motion.div initial={{ opacity:0, scale:0.9 }} animate={{ opacity:1, scale:1 }} exit={{ opacity:0 }}
-            className="mb-4 text-center py-3 px-4 rounded-xl"
-            style={{ background:'rgba(110,231,183,0.15)', border:'1px solid rgba(110,231,183,0.3)' }}>
-            <p className="font-bold text-[#6ee7b7] mb-1">🎉 قادينا ليك البرنامج السحري ديالك!</p>
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <button onClick={() => setPage('dashboard')} className="btn-zen text-xs py-1.5 px-4 text-[#0a0f1a]">
-                 سير للرئيسية باش تشوفو 🔥
+            className="mb-4 text-center py-5 px-6 rounded-[2rem] glass border-[#34d399]/30 shadow-[0_0_40px_rgba(52,211,153,0.1)]">
+            <p className="font-bold text-[#6ee7b7] mb-2 text-xl">🎉 قاديت ليك البرنامج ديالك!</p>
+            <div className="flex items-center justify-center gap-4 mt-4">
+              <button onClick={() => setPage('dashboard')} className="btn-zen py-3 px-8 text-[#0a0f1a] font-bold shadow-xl">
+                 سير شوفو 🔥
               </button>
-              <button onClick={resetChat} className="btn-ghost text-xs py-1.5 px-4">
+              <button onClick={resetChat} className="btn-ghost text-xs py-3 px-6 opacity-40 hover:opacity-100 transition-opacity">
                  محادثة جديدة
               </button>
             </div>
@@ -155,20 +143,19 @@ Available categories string: movement, mindfulness, self-care, social, mental, c
         )}
       </AnimatePresence>
 
-      <div className="flex gap-2">
+      <div className="flex gap-3 pt-2">
         <input 
           type="text" 
           placeholder="كيفاش كتحس اليوم؟ كتب ليا..." 
-          className="zen-input"
+          className="zen-input py-4 pr-6"
           value={input} 
           onChange={e => setInput(e.target.value)} 
           onKeyDown={e => e.key === 'Enter' && handleSend()}
         />
-        <button onClick={handleSend} disabled={loading || !input.trim()} className="btn-zen px-6 disabled:opacity-50">
-          صيفط
+        <button onClick={handleSend} disabled={loading || !input.trim()} className="btn-zen px-8 shadow-xl font-bold disabled:opacity-20 flex items-center gap-2">
+          {loading ? '...' : 'صيفط'}
         </button>
       </div>
     </div>
   )
 }
-
