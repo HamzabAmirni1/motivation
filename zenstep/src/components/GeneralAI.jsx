@@ -35,40 +35,51 @@ export default function GeneralAI() {
     setLoading(true)
 
     try {
-      const systemPrompt = "Mochida. Friendly Darija AI."
+      const systemPrompt = "Mochida. Friendly Darija AI assistant by Hamza Amirni."
       let aiText = ''
 
-      // 1. Try Nexra with multi-model fallback
-      const models = ['GPT-4', 'CHATGPT', 'GEMINI']
+      // 1. Try Nexra with reordered models (GPT-3.5 is most stable for free tiers)
+      const models = ['CHATGPT', 'GPT-4', 'GEMINI', 'CLAUDE-3']
       for (const model of models) {
         if (aiText) break
         try {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 12000)
+          
           const res = await fetch('https://nexra.aryahcr.cc/api/chat/gpt', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
             body: JSON.stringify({
               prompt: userMsg,
-              messages: newMessages.slice(-5).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
+              messages: newMessages.slice(-4).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
               model: model,
               markdown: true
             })
           })
+          clearTimeout(timeoutId)
           const data = await res.json()
-          if (data.gpt || data.result) aiText = data.gpt || data.result
+          if (data.gpt || data.result) {
+            aiText = data.gpt || data.result
+            console.log(`Success with Nexra ${model}`)
+          }
         } catch (e) {
-          console.warn(`Nexra ${model} failed, trying next...`)
+          console.warn(`Nexra ${model} failed/timed out...`)
         }
       }
 
-      // 2. Pollinations Final Fallback
+      // 2. Pollinations Final Fallback (Ultra Simple GET)
       if (!aiText) {
         try {
-          const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&system=${encodeURIComponent(systemPrompt)}`)
-          if (res.ok) aiText = await res.text()
+          const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&cache=${Date.now()}`)
+          if (res.ok) {
+            aiText = await res.text()
+            console.log("Success with Pollinations GET")
+          }
         } catch (e) { console.error("Pollinations failed") }
       }
 
-      if (!aiText) throw new Error('Systems are currently busy. Please wait 10 seconds and try again.')
+      if (!aiText) throw new Error('Providers are overloaded. Please try once more in 10s.')
       
       const aiMsgId = Date.now().toString() + "_ai"
       const updatedMessages = [...newMessages, { id: aiMsgId, role: 'model', text: aiText.trim() }]
