@@ -3,36 +3,36 @@
 // ──────────────────────────────────────────────
 
 export const QUEST_POOL = [
-  // Movement
-  { id:'q1',  title:'Morning Walk',        desc:'Walk outside for 10 minutes',                category:'movement',    xp:20, icon:'🚶', diff:'easy'   },
-  { id:'q2',  title:'500 Steps Challenge',  desc:'Count and complete 500 steps today',          category:'movement',    xp:15, icon:'👟', diff:'easy'   },
-  { id:'q3',  title:'Stretch Break',        desc:'Do a 5-minute full-body stretch',              category:'movement',    xp:10, icon:'🤸', diff:'easy'   },
-  { id:'q4',  title:'Dance It Out',         desc:'Dance freely to your favorite song 🎵',        category:'movement',    xp:15, icon:'💃', diff:'easy'   },
-  { id:'q5',  title:'20-Min Workout',       desc:'Complete a home workout session',              category:'movement',    xp:30, icon:'💪', diff:'medium' },
-  // Mindfulness
-  { id:'q6',  title:'Gratitude Journal',    desc:'Write 3 things you are grateful for today',   category:'mindfulness', xp:20, icon:'📓', diff:'easy'   },
-  { id:'q7',  title:'Breathe Deep',         desc:'Complete one full Breathe-Sync session',       category:'mindfulness', xp:15, icon:'💨', diff:'easy'   },
-  { id:'q8',  title:'5-Min Meditation',     desc:'Sit quietly with your eyes closed 5 minutes', category:'mindfulness', xp:25, icon:'🧘', diff:'medium' },
-  { id:'q9',  title:'Digital Detox',        desc:'Stay off your phone for 30 minutes',           category:'mindfulness', xp:30, icon:'📵', diff:'medium' },
-  { id:'q10', title:'Nature Observation',   desc:'Spend 10 mins observing nature mindfully',     category:'mindfulness', xp:20, icon:'🍃', diff:'easy'   },
-  // Self-Care
-  { id:'q11', title:'Drink 2L of Water',    desc:'Stay hydrated — track your water intake',      category:'self-care',   xp:20, icon:'💧', diff:'easy'   },
-  { id:'q12', title:'Make Your Bed',        desc:'Start the day with a small win',               category:'self-care',   xp:10, icon:'🛏️', diff:'easy'   },
-  { id:'q13', title:'Eat One Healthy Meal', desc:'Prepare or choose one nutritious meal',        category:'self-care',   xp:20, icon:'🥗', diff:'easy'   },
-  { id:'q14', title:'Sleep by 10:30 PM',   desc:'Commit to a healthy sleep schedule',           category:'self-care',   xp:25, icon:'😴', diff:'medium' },
-  { id:'q15', title:'Cold Shower',          desc:'Try a 30-second cold shower for a boost',      category:'self-care',   xp:20, icon:'🚿', diff:'medium' },
-  // Social
-  { id:'q16', title:'Reach Out',            desc:'Send a kind message to someone you care about',category:'social',      xp:20, icon:'💌', diff:'easy'   },
-  { id:'q17', title:'Genuine Compliment',   desc:'Give one heartfelt compliment today',          category:'social',      xp:15, icon:'😊', diff:'easy'   },
-  { id:'q18', title:'Call a Friend',        desc:'Have a real voice or video conversation',       category:'social',      xp:30, icon:'📞', diff:'medium' },
-  // Mental
-  { id:'q19', title:'CBT Thought Flip',     desc:'Reframe one negative thought using CBT tool',  category:'mental',      xp:25, icon:'🧠', diff:'medium' },
-  { id:'q20', title:'Grounding Exercise',   desc:'Complete the 5-4-3-2-1 grounding technique',   category:'mental',      xp:20, icon:'🌍', diff:'easy'   },
-  { id:'q21', title:'Memory Game',          desc:'Beat level 5 in the Pattern-Match game',        category:'mental',      xp:15, icon:'🎮', diff:'easy'   },
-  // Creative
-  { id:'q22', title:'Draw Something',       desc:'Sketch or doodle anything for 5 minutes',      category:'creative',    xp:20, icon:'🎨', diff:'easy'   },
-  { id:'q23', title:'Write a Haiku',        desc:'Write a 3-line haiku about your day',           category:'creative',    xp:25, icon:'✍️', diff:'medium' },
-  { id:'q24', title:'Cook Something New',   desc:'Prepare a meal you have never made before',    category:'creative',    xp:30, icon:'🍳', diff:'medium' },
+  // الحركة
+  { id:'q1',  title:'مشية د الصباح',        desc:'تمشى برا لواحد 10 دقيق',                category:'movement',    xp:20, icon:'🚶', diff:'easy'   },
+  { id:'q2',  title:'تحدي 500 خطوة',        desc:'حاول تكمل 500 خطوة هاد النهار',          category:'movement',    xp:15, icon:'👟', diff:'easy'   },
+  { id:'q3',  title:'استراحة تمدد',         desc:'دير حركات تمدد للجسم كامل لـ 5 دقيق',      category:'movement',    xp:10, icon:'🤸', diff:'easy'   },
+  { id:'q4',  title:'نشط مع راسك',          desc:'شطح على أغنيتك المفضلة وخرج الطاقة 🎵',      category:'movement',    xp:15, icon:'💃', diff:'easy'   },
+  { id:'q5',  title:'رياضة ف الدار',        desc:'دير حصة تدريبية خفيفة ف الدار',            category:'movement',    xp:30, icon:'💪', diff:'medium' },
+  // الذهن
+  { id:'q6',  title:'مذكرة الامتنان',       desc:'كتب 3 حوايج زوينين وقعو ليك اليوم',       category:'mindfulness', xp:20, icon:'📓', diff:'easy'   },
+  { id:'q7',  title:'تنفس بعمق',           desc:'دير حصة وحدة كاملة ديال التنفس لمنتظم',     category:'mindfulness', xp:15, icon:'💨', diff:'easy'   },
+  { id:'q8',  title:'تأمل لـ 5 دقيق',       desc:'جلس ف بلاصة هادية وغمض عينيك 5 دقيق',     category:'mindfulness', xp:25, icon:'🧘', diff:'medium' },
+  { id:'q9',  title:'راحة دجيتال',          desc:'بعد على التلفون لواحد 30 دقيقة',           category:'mindfulness', xp:30, icon:'📵', diff:'medium' },
+  { id:'q10', title:'تأمل الطبيعة',         desc:'جلس 10 دقيق كتشوف ف الطبيعة (شجر، سما...)', category:'mindfulness', xp:20, icon:'🍃', diff:'easy'   },
+  // العناية بالذات
+  { id:'q11', title:'شرب 2 لتر د الماء',     desc:'بقى شرب الماء بزاف هاد النهار لمهم هو الهيدراتاسيون', category:'self-care',   xp:20, icon:'💧', diff:'easy'   },
+  { id:'q12', title:'جمع بلاصتك',           desc:'رتب الناموسية ديالك فاش تفيق',             category:'self-care',   xp:10, icon:'🛏️', diff:'easy'   },
+  { id:'q13', title:'وجبة صحية',            desc:'وجد آو كول وجبة وحدة صحية اليوم',          category:'self-care',   xp:20, icon:'🥗', diff:'easy'   },
+  { id:'q14', title:'النعاس بكري',          desc:'حاول تنعس قبل 10:30 د الليل لراحة عقلك',      category:'self-care',   xp:25, icon:'😴', diff:'medium' },
+  { id:'q15', title:'دوش بارد',             desc:'جرب دوش بارد لـ 30 ثانية باش تفيق مزيان',    category:'self-care',   xp:20, icon:'🚿', diff:'medium' },
+  // الاجتماعي
+  { id:'q16', title:'تواصل مع أحبابك',      desc:'صيفط ميساج زوين لشي حد عزيز عليك',         category:'social',      xp:20, icon:'💌', diff:'easy'   },
+  { id:'q17', title:'كلمة طيبة',            desc:'قول كلمة زوينة آو مدح شي حد اليوم',         category:'social',      xp:15, icon:'😊', diff:'easy'   },
+  { id:'q18', title:'اتصل بصديق',           desc:'هضر مع شي صديق ف التلفون آو فيديو',        category:'social',      xp:30, icon:'📞', diff:'medium' },
+  // العقل
+  { id:'q19', title:'قلب الأفكار (CBT)',    desc:'حول فكرة سلبية لفكرة إيجابية باستعمال CBT',  category:'mental',      xp:25, icon:'🧠', diff:'medium' },
+  { id:'q20', title:'تمرين التثبيت',       desc:'طبق تقنية 5-4-3-2-1 باش ترجع لهنا ودابا',   category:'mental',      xp:20, icon:'🌍', diff:'easy'   },
+  { id:'q21', title:'لعبة الذاكرة',         desc:'وصل للمستوى 5 ف لعبة الأنماط',             category:'mental',      xp:15, icon:'🎮', diff:'easy'   },
+  // الإبداع
+  { id:'q22', title:'رسم شي حاجة',         desc:'رسم أي حاجة جات ف بالك لـ 5 دقيق',         category:'creative',    xp:20, icon:'🎨', diff:'easy'   },
+  { id:'q23', title:'كتب شي حاجة',          desc:'كتب 3 سطور كتوصف فيهوم شعورك هاد النهار',   category:'creative',    xp:25, icon:'✍️', diff:'medium' },
+  { id:'q24', title:'طيب شي حاجة جديدة',    desc:'وجد شي أكلة عمرك ما جربتيها',              category:'creative',    xp:30, icon:'🍳', diff:'medium' },
 ]
 
 /**
