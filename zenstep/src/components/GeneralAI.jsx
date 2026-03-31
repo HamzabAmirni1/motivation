@@ -1,12 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
-import { Trash2, Send, Bot, User, X, AlertCircle } from 'lucide-react'
+import { Trash2, Send, Bot, User, X, AlertCircle, Sparkles } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-
-// Real Direct Gemini Key from user script
-const GEMINI_KEY = "AIzaSyBKKEI-q1qM7mRz0cHA9Qs5KA2hM2ElR8U"
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`
 
 export default function GeneralAI() {
   const { syncToDatabase } = useAuth()
@@ -42,54 +38,53 @@ export default function GeneralAI() {
       const systemPrompt = "Mochida. Friendly Darija AI by Hamza Amirni."
       let aiText = ''
 
-      // 1. Try Gemini via Nexra Proxy (Handles CORS)
+      // 1. Try Stable AI (GPT-4o-mini) - From Hamza's script logic
       try {
-        const res = await fetch('https://nexra.aryahcr.cc/api/chat/gpt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: userMsg,
-            messages: newMessages.slice(-5).map(m => ({ role: m.role === 'model' ? "assistant" : "user", content: m.text })),
-            model: "GEMINI",
-            markdown: true
-          })
-        })
-        const data = await res.json()
-        if (data.gpt || data.result) aiText = data.gpt || data.result
-      } catch (e) {
-        console.warn("Nexra Gemini failed...")
-      }
+        const res = await fetch(`https://all-in-1-ais.officialhectormanuel.workers.dev/?query=${encodeURIComponent(systemPrompt + " " + userMsg)}&model=gpt-4o-mini`)
+        if (res.ok) {
+          const data = await res.json()
+          aiText = data?.choices?.[0]?.message?.content || data?.reply || data?.message
+        }
+      } catch (e) { console.warn("Stable AI failed") }
 
-      // 2. Try Pollinations Gemini Fallback
+      // 2. Try LuminAI - From Hamza's script
       if (!aiText) {
         try {
-          const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=gemini&cache=${Date.now()}`)
-          if (res.ok) aiText = await res.text()
-        } catch (e) { console.warn("Pollinations Gemini failed") }
-      }
-
-      // 3. Last resort: ChatGPT via Nexra
-      if (!aiText) {
-        try {
-          const res = await fetch('https://nexra.aryahcr.cc/api/chat/gpt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: userMsg, model: "CHATGPT" })
+          const res = await fetch("https://luminai.my.id/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: userMsg, user: msgId, prompt: systemPrompt })
           })
           const data = await res.json()
-          aiText = data.gpt || data.result
-        } catch (e) { console.warn("Final fallback failed") }
+          aiText = data.result || data.response
+        } catch (e) { console.warn("LuminAI failed") }
       }
 
-      if (!aiText) throw new Error('Providers busy. Wait 10s.')
+      // 3. Try Vreden GPT/Blackbox - From Hamza's script
+      if (!aiText) {
+        try {
+          const res = await fetch(`https://api.vreden.my.id/api/ai/gpt?query=${encodeURIComponent(userMsg)}`)
+          const data = await res.json()
+          aiText = data.result || data.response
+        } catch (e) { console.warn("Vreden GPT failed") }
+      }
+
+      // 4. Final Pollinations Fallback (Direct GET)
+      if (!aiText) {
+        try {
+          const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userMsg)}?model=openai&cache=${Date.now()}`)
+          if (res.ok) aiText = await res.text()
+        } catch (e) { console.error("All fallbacks failed") }
+      }
+
+      if (!aiText) throw new Error('Providers busy. Try again.')
       
       const aiMsgId = Date.now().toString() + "_ai"
       const updatedMessages = [...newMessages, { id: aiMsgId, role: 'model', text: aiText.trim() }]
       setMessages(updatedMessages)
       syncToDatabase()
     } catch (error) {
-      console.error(error)
-      setMessages(prev => [...prev, { id: 'err_'+Date.now(), role: 'model', text: `⚠️ **System Busy:** ${error.message}` }])
+      setMessages(prev => [...prev, { id: 'err_'+Date.now(), role: 'model', text: `⚠️ **System Error:** ${error.message}` }])
     } finally {
       setLoading(false)
     }
@@ -112,14 +107,14 @@ export default function GeneralAI() {
       {/* Header */}
       <div className="mb-4 flex items-center justify-between px-3">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#6ee7b7] to-[#a78bfa] flex items-center justify-center shadow-2xl rotate-3 border border-white/20">
-            <Bot size={28} className="text-[#0a1424]" />
+          <div className="p-3 rounded-2xl bg-gradient-to-tr from-[#34d399] to-[#10b981] shadow-[0_0_20px_rgba(52,211,153,0.3)] rotate-3">
+            <Sparkles size={24} className="text-[#0a1424]" />
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight gradient-text">ZenBot AI</h1>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <div className="w-1.5 h-1.5 bg-[#6ee7b7] rounded-full animate-pulse shadow-[0_0_8px_#6ee7b7]" />
-              <span className="text-[10px] uppercase tracking-widest font-bold opacity-40">Direct Gemini Engine</span>
+              <div className="w-1.5 h-1.5 bg-[#6ee7b7] rounded-full animate-pulse" />
+              <span className="text-[10px] uppercase tracking-widest font-bold opacity-40 italic">Hamza Hybrid Intelligence</span>
             </div>
           </div>
         </div>
@@ -132,7 +127,7 @@ export default function GeneralAI() {
         </button>
       </div>
 
-      {/* Chat messages */}
+      {/* Chat Area */}
       <div className="flex-1 overflow-y-auto glass p-6 mb-4 flex flex-col gap-6 rounded-[2.5rem] relative shadow-inner scrollbar-hide border border-white/5">
         <AnimatePresence>
           {messages.map((m) => (
@@ -140,16 +135,14 @@ export default function GeneralAI() {
               key={m.id} 
               initial={{ opacity: 0, scale: 0.95, y: 15 }} 
               animate={{ opacity: 1, scale: 1, y: 0 }} 
-              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.1 } }}
+              exit={{ opacity: 0, scale: 0.9 }}
               className={`group relative max-w-[88%] p-5 rounded-[1.8rem] text-sm leading-relaxed shadow-xl ${
                 m.role === 'model' 
-                  ? 'self-start bg-[rgba(255,255,255,0.03)] border border-white/[0.06] rounded-tl-none text-[rgba(255,255,255,0.85)]' 
-                  : 'self-end bg-gradient-to-br from-[#34d399] to-[#059669] text-white font-medium rounded-tr-none shadow-[#059669]/10'
+                  ? 'self-start bg-[rgba(255,255,255,0.03)] border border-white/[0.08] rounded-tl-none' 
+                  : 'self-end bg-gradient-to-br from-[#34d399] to-[#10b981] text-[#0a1424] font-semibold rounded-tr-none'
               }`}
             >
-              <div className="prose prose-invert prose-sm max-w-none prose-p:my-0 prose-headings:text-white prose-strong:text-[#6ee7b7]">
-                <ReactMarkdown>{m.text}</ReactMarkdown>
-              </div>
+              <ReactMarkdown className="prose prose-invert prose-sm max-w-none">{m.text}</ReactMarkdown>
               
               <button 
                 onClick={() => deleteMessage(m.id)}
@@ -176,7 +169,7 @@ export default function GeneralAI() {
         <input 
           type="text" 
           placeholder="كتب شي حاجة هنا..." 
-          className="zen-input pr-36 py-5 h-auto text-lg shadow-2xl rounded-3xl border-white/5 bg-white/[0.02] focus:bg-white/[0.05] transition-all placeholder:opacity-30"
+          className="zen-input pr-36 py-5 h-auto text-lg shadow-2xl rounded-3xl border-white/5 bg-white/[0.02] focus:bg-white/[0.05] transition-all"
           value={input} 
           onChange={e => setInput(e.target.value)} 
           onKeyDown={e => e.key === 'Enter' && handleSend()}
@@ -184,13 +177,13 @@ export default function GeneralAI() {
         <button 
           onClick={handleSend} 
           disabled={loading || !input.trim()} 
-          className="absolute left-3 top-1/2 -translate-y-1/2 btn-zen px-8 py-3.5 shadow-2xl hover:brightness-110 active:scale-95 disabled:opacity-20 disabled:grayscale transition-all flex items-center gap-2 group"
+          className="absolute left-3 top-1/2 -translate-y-1/2 btn-zen px-8 py-3.5 shadow-2xl hover:brightness-110 active:scale-95 disabled:opacity-20 transition-all flex items-center gap-2"
         >
-          {loading ? '...' : <><Send size={18} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" /> إرسال</>}
+          {loading ? '...' : <><Send size={18} /> إرسال</>}
         </button>
       </div>
 
-      {/* Confirmation Modal */}
+      {/* Modal */}
       <AnimatePresence>
         {showConfirm && (
           <motion.div 
@@ -199,17 +192,15 @@ export default function GeneralAI() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="glass p-10 rounded-[3rem] max-w-sm w-full text-center border border-white/10 shadow-[0_0_120px_rgba(0,0,0,0.6)]"
+              className="glass p-10 rounded-[3rem] max-w-sm w-full text-center border border-white/10 shadow-2xl"
             >
-              <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-red-500/20">
-                <AlertCircle size={40} className="text-red-400" />
-              </div>
-              <h2 className="text-2xl font-black mb-3">متأكد؟</h2>
-              <p className="text-sm opacity-50 mb-10 leading-relaxed font-medium">غا يتمسح كاع تاريخ المحادثة ديالك وما غيبقاش ف Supabase نهائياً.</p>
+              <AlertCircle size={48} className="mx-auto mb-6 text-red-400" />
+              <h2 className="text-2xl font-black mb-3 text-white">متأكد؟</h2>
+              <p className="text-sm opacity-50 mb-10 leading-relaxed">غا يتمسح كاع تاريخ المحادثة ديالك وما غيبقاش ف Supabase.</p>
               
               <div className="flex gap-4">
-                <button onClick={() => setShowConfirm(false)} className="flex-1 py-4 text-sm font-bold opacity-30 hover:opacity-100 transition-opacity">تراجع</button>
-                <button onClick={doClearChat} className="flex-1 py-4 bg-red-500 rounded-2xl text-sm font-black hover:bg-red-600 transition-colors shadow-[0_10px_30px_rgba(239,68,68,0.3)] text-white">مسح دائم</button>
+                <button onClick={() => setShowConfirm(false)} className="flex-1 py-4 text-sm font-bold opacity-30 hover:opacity-100 text-white">تراجع</button>
+                <button onClick={doClearChat} className="flex-1 py-4 bg-red-500 rounded-2xl text-sm font-black hover:bg-red-600 transition-colors text-white shadow-lg">مسح الكل</button>
               </div>
             </motion.div>
           </motion.div>
@@ -217,7 +208,7 @@ export default function GeneralAI() {
       </AnimatePresence>
       
       <p className="text-[10px] text-center mt-5 opacity-10 uppercase tracking-[0.3em] font-black">
-        Encrypted Sync • Neural v2.5
+        Hybrid AI Integration • Neural v3.0
       </p>
     </div>
   )
