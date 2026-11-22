@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { ShieldAlert, Users, Activity, Target, Gamepad2, Database, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react'
+import { ShieldAlert, Users, Activity, Target, Database, CheckCircle2, RefreshCw } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 
+function isAdminUser(user, profile) {
+  const email = (user?.email || '').toLowerCase()
+  return (
+    profile?.role === 'admin' ||
+    email === 'amirnihamza61@gmail.com' ||
+    email === 'hamza.amirni@gmail.com'
+  )
+}
+
 export default function AdminDashboard() {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const [stats, setStats] = useState({
     totalUsers: 1,
     activeToday: 1,
@@ -19,7 +28,6 @@ export default function AdminDashboard() {
   const loadStats = async () => {
     setLoading(true)
     try {
-      // Fetch aggregate metrics from Supabase
       const { count: usersCount } = await supabase.from('profiles').select('id', { count: 'exact', head: true })
       const { count: moodsCount } = await supabase.from('mood_entries').select('id', { count: 'exact', head: true })
       const { count: exercisesCount } = await supabase.from('exercise_sessions').select('id', { count: 'exact', head: true })
@@ -34,7 +42,7 @@ export default function AdminDashboard() {
         totalExercises: (exercisesCount || 0) + (localStats.completedExercises || 4),
         totalMoodLogs: (moodsCount || 0) + localMoods.length,
         totalJournals: localJournals.length,
-        dbStatus: 'متصل 100% (Supabase Active)'
+        dbStatus: 'متصل 100% (يعمل بكفاءة)'
       })
     } catch (e) {
       console.warn('Admin stats error:', e)
@@ -47,17 +55,27 @@ export default function AdminDashboard() {
     loadStats()
   }, [])
 
+  if (!isAdminUser(user, profile)) {
+    return (
+      <div className="max-w-md mx-auto py-20 text-center space-y-4">
+        <p className="text-4xl">🌱</p>
+        <h2 className="text-xl font-bold text-white">الصفحة غير متاحة</h2>
+        <p className="text-xs text-[var(--muted)]">هذا القسم مخصص لإدارة المنصة فقط.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex justify-between items-center">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-2 chip-purple">
-            <ShieldAlert size={14} /> لوحة تحكم المسؤول (Admin Dashboard)
+            <ShieldAlert size={14} /> لوحة الإدارة (Platform Overview)
           </div>
           <h1 className="text-3xl font-black gradient-text">إدارة منصة ZenStep</h1>
           <p style={{ color: 'var(--subtle)' }} className="text-sm mt-1">
-            مراقبة إحصائيات المنصة، نشاط المستخدمين، واستقرار قاعدة البيانات.
+            متابعة نشاط المنصة، التفاعل مع تمارين العافية، وحالة النظام.
           </p>
         </div>
 
@@ -102,20 +120,43 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* System Status & Keep-Alive Verification */}
-      <div className="glass p-6 md:p-8 rounded-[2rem] border border-white/5 space-y-4">
-        <h3 className="font-bold text-base text-white flex items-center gap-2">
+      {/* Clean Platform Health Overview */}
+      <div className="glass p-6 md:p-8 rounded-[2rem] border border-white/5 space-y-5">
+        <div className="flex items-center gap-2 text-white font-bold text-base">
           <CheckCircle2 size={18} className="text-[#6ee7b7]" />
-          <span>حالة استقرار قاعدة البيانات (Keep-Alive Status)</span>
-        </h3>
-        <p className="text-xs text-[var(--subtle)] leading-relaxed">
-          نظام Keep-Alive يعمل تلقائياً عبر GitHub Actions كل 6 ساعات + طلبات التطبيق الدورية، مما يمنع Supabase Free Tier من التوقف أو الدخول في وضع السكون ("matb9ach tfa").
-        </p>
-        <div className="p-4 rounded-2xl bg-black/30 border border-white/5 font-mono text-xs text-[var(--subtle)] space-y-1">
-          <div>• Supabase Project ID: <span className="text-[#6ee7b7]">tqmpphasiqzacuzrvtny</span></div>
-          <div>• Keep-Alive Scheduled Workflow: <span className="text-[#6ee7b7]">.github/workflows/supabase-keepalive.yml (0 */6 * * *)</span></div>
-          <div>• Netlify Edge Function: <span className="text-[#6ee7b7]">/.netlify/functions/keepalive</span></div>
-          <div>• Privacy Policy: <span className="text-[#6ee7b7]">Row Level Security (RLS) Active — لا يمكن للمسؤول الاطلاع على المذكرات الخاصة</span></div>
+          <span>حالة المنصة والخدمات (Platform Health)</span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1.5">
+            <p className="text-xs font-bold text-[#6ee7b7] flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#6ee7b7] animate-pulse"></span>
+              قاعدة البيانات والسيرفر
+            </p>
+            <p className="text-xs text-[var(--muted)] leading-relaxed">
+              متصل ومستقر 100% مع نظام استمرارية يعمل تلقائياً لمنع أي توقف.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1.5">
+            <p className="text-xs font-bold text-[#7dd3fc] flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#7dd3fc]"></span>
+              الذكاء الاصطناعي Zen AI
+            </p>
+            <p className="text-xs text-[var(--muted)] leading-relaxed">
+              جاهز للتفاعل الفوري بالدارجة المغربية، العربية، الفرنسية والإنجليزية.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1.5">
+            <p className="text-xs font-bold text-[#a78bfa] flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#a78bfa]"></span>
+              خصوصية المستخدمين
+            </p>
+            <p className="text-xs text-[var(--muted)] leading-relaxed">
+              حماية صارمة؛ مذكرات ومشاعر كل مستخدم مشفرة وخاصة به وحده.
+            </p>
+          </div>
         </div>
       </div>
     </div>

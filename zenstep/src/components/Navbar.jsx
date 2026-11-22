@@ -19,7 +19,7 @@ const PRIMARY_NAV = [
 ];
 
 // Secondary / activities menu items in the side drawer
-const DRAWER_SECTIONS = [
+const getDrawerSections = (isAdmin) => [
   {
     category: 'الاسترخاء والأنشطة',
     items: [
@@ -29,23 +29,51 @@ const DRAWER_SECTIONS = [
     ]
   },
   {
-    category: 'الحساب والإدارة',
+    category: 'الحساب والمشروع',
     items: [
       { id: 'profile',   label: 'حسابي والإعدادات', desc: 'الملف الشخصي، الأوسمة، واللغة', icon: User, color: '#fcd34d' },
-      { id: 'admin',     label: 'لوحة المسؤول',    desc: 'إحصائيات واستقرار النظام',    icon: ShieldAlert, color: '#fda4af' },
+      ...(isAdmin ? [{ id: 'admin', label: 'لوحة الإدارة', desc: 'إحصائيات المنصة', icon: ShieldAlert, color: '#fda4af' }] : []),
       { id: 'developer', label: 'عن المطور ZenStep', desc: 'معلومات التواصل والمشروع',    icon: Code2, color: '#94a3b8' },
     ]
   }
 ];
 
-function isImageUrl(url) {
-  return typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/') || url.startsWith('data:image'));
+export function renderAvatarContent(profile, fallbackEmoji = '🌱') {
+  const url = profile?.avatar_url
+  if (typeof url === 'string') {
+    const trimmed = url.trim()
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('/') || trimmed.startsWith('data:image')) {
+      return <img src={trimmed} alt="Avatar" className="w-full h-full object-cover" />
+    }
+    // Only accept if it is a genuine short emoji or avatar symbol (1-4 chars)
+    if (trimmed.length > 0 && trimmed.length <= 4) {
+      return <span>{trimmed}</span>
+    }
+  }
+  // Otherwise use first letter of username or fallback
+  const uname = profile?.username?.trim()
+  if (uname && uname.length > 0) {
+    return <span className="font-bold select-none">{uname[0].toUpperCase()}</span>
+  }
+  return <span className="select-none">{fallbackEmoji}</span>
+}
+
+function checkIsAdmin(user, profile) {
+  const email = (user?.email || '').toLowerCase()
+  return (
+    profile?.role === 'admin' ||
+    email === 'amirnihamza61@gmail.com' ||
+    email === 'hamza.amirni@gmail.com'
+  )
 }
 
 export default function Navbar({ page, setPage }) {
-  const { profile, signOut, notifications } = useAuth()
+  const { user, profile, signOut, notifications } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+
+  const isAdmin = checkIsAdmin(user, profile)
+  const drawerSections = getDrawerSections(isAdmin)
 
   const lv = calculateLevel(profile?.xp || 0)
   const unreadCount = notifications.filter(n => !n.read).length
@@ -122,11 +150,11 @@ export default function Navbar({ page, setPage }) {
           </div>
 
           {/* Right Header Controls (Notifications, Level, Avatar, Menu toggle) */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             {/* Notification Bell */}
             <button
               onClick={() => setNotifOpen(true)}
-              className="relative p-2.5 rounded-xl glass hover:bg-white/10 text-[var(--subtle)] hover:text-white transition-all"
+              className="relative p-2.5 rounded-xl glass hover:bg-white/10 text-[var(--subtle)] hover:text-white transition-all shrink-0"
               title="الإشعارات"
             >
               <Bell size={18} />
@@ -140,11 +168,11 @@ export default function Navbar({ page, setPage }) {
               )}
             </button>
 
-            {/* Level & Streak Chip */}
+            {/* Level & Streak Chip (Hidden on mobile) */}
             {profile && (
               <div
                 onClick={() => handleNavClick('profile')}
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl glass cursor-pointer hover:border-[#6ee7b7]/30 transition-all"
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl glass cursor-pointer hover:border-[#6ee7b7]/30 transition-all shrink-0"
               >
                 <span className="text-xs font-bold text-[#6ee7b7]">Lv.{lv.level}</span>
                 <span className="text-[11px] text-[var(--muted)]">|</span>
@@ -157,24 +185,20 @@ export default function Navbar({ page, setPage }) {
             {/* User Avatar */}
             <button
               onClick={() => handleNavClick('profile')}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-md ring-2 ring-white/10 hover:ring-[#6ee7b7]/50 transition-all overflow-hidden shrink-0"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-md ring-2 ring-white/10 hover:ring-[#6ee7b7]/50 transition-all overflow-hidden shrink-0 select-none"
               style={{
                 background: 'linear-gradient(135deg,#6ee7b7,#a78bfa)',
                 color: '#0d1117'
               }}
               title="حسابي"
             >
-              {isImageUrl(profile?.avatar_url) ? (
-                <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-full" />
-              ) : (
-                <span>{profile?.avatar_url || (profile?.username?.[0] || '🌱').toUpperCase()}</span>
-              )}
+              {renderAvatarContent(profile, '🌱')}
             </button>
 
             {/* Side Drawer Toggle Button (Always visible on mobile, quick access on desktop) */}
             <button
               onClick={() => setDrawerOpen(!drawerOpen)}
-              className="p-2.5 rounded-xl glass text-[var(--subtle)] hover:text-white transition-all"
+              className="p-2.5 rounded-xl glass text-[var(--subtle)] hover:text-white transition-all shrink-0"
               title="القائمة الجانبية"
             >
               {drawerOpen ? <X size={19} /> : <Menu size={19} />}
@@ -209,14 +233,10 @@ export default function Navbar({ page, setPage }) {
                 <div className="flex items-center justify-between pb-4 border-b border-white/5">
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl overflow-hidden shrink-0 shadow-md"
-                      style={{ background: 'linear-gradient(135deg,#6ee7b7,#a78bfa)' }}
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl overflow-hidden shrink-0 shadow-md select-none"
+                      style={{ background: 'linear-gradient(135deg,#6ee7b7,#a78bfa)', color: '#0d1117' }}
                     >
-                      {isImageUrl(profile?.avatar_url) ? (
-                        <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <span>{profile?.avatar_url || lv.emoji}</span>
-                      )}
+                      {renderAvatarContent(profile, lv.emoji)}
                     </div>
                     <div>
                       <h3 className="font-bold text-sm text-white truncate max-w-[170px]">{profile?.username || 'صاحبي'}</h3>
@@ -263,7 +283,7 @@ export default function Navbar({ page, setPage }) {
                 </div>
 
                 {/* Categorized Drawer Items */}
-                {DRAWER_SECTIONS.map((sec, idx) => (
+                {drawerSections.map((sec, idx) => (
                   <div key={idx} className="space-y-2">
                     <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider px-2">
                       {sec.category}

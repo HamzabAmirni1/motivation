@@ -4,6 +4,7 @@ import { User, Shield, Bell, Volume2, Globe, Key, Download, Trash2, Trophy, Flam
 import { useAuth } from '../contexts/AuthContext'
 import { calculateLevel, ACHIEVEMENTS } from '../lib/gamification'
 import { supabase } from '../lib/supabase'
+import { renderAvatarContent } from './Navbar'
 
 const AVATAR_PRESETS = ['🌱', '🌿', '🌸', '🌻', '🧘', '🌊', '🌙', '⭐', '🦁', '🦉', '🦋', '✨'];
 
@@ -17,8 +18,19 @@ export default function ProfilePage() {
   const lv = calculateLevel(xp)
   const streak = profile?.streak_count || 0
 
+  const getCleanInitialAvatar = () => {
+    const av = profile?.avatar_url
+    if (typeof av === 'string') {
+      const trimmed = av.trim()
+      if (isImageUrl(trimmed) || AVATAR_PRESETS.includes(trimmed)) {
+        return trimmed
+      }
+    }
+    return '🌱'
+  }
+
   const [username, setUsername] = useState(profile?.username || '')
-  const [selectedAvatar, setSelectedAvatar] = useState(profile?.avatar_url || '🌱')
+  const [selectedAvatar, setSelectedAvatar] = useState(getCleanInitialAvatar)
   const [language, setLanguage] = useState(profile?.language || 'ar')
   const [notifEnabled, setNotifEnabled] = useState(profile?.settings?.notifications ?? true)
   const [soundEnabled, setSoundEnabled] = useState(profile?.settings?.sounds ?? true)
@@ -98,14 +110,10 @@ export default function ProfilePage() {
       >
         <div className="flex items-center gap-5">
           <div
-            className="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl shadow-2xl relative overflow-hidden shrink-0"
-            style={{ background: 'linear-gradient(135deg, #6ee7b7, #a78bfa)' }}
+            className="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl shadow-2xl relative overflow-hidden shrink-0 select-none"
+            style={{ background: 'linear-gradient(135deg, #6ee7b7, #a78bfa)', color: '#0d1117' }}
           >
-            {isImageUrl(profile?.avatar_url) ? (
-              <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-3xl" />
-            ) : (
-              <span>{profile?.avatar_url || lv.emoji}</span>
-            )}
+            {renderAvatarContent(profile, lv.emoji)}
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
