@@ -2,11 +2,13 @@ import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BookOpen, Plus, Search, Tag, Trash2, Edit3, Calendar, Lock, CheckCircle2, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 
 const JOURNAL_MOODS = ['🌿', '😌', '😊', '💡', '🌧️', '🔥', '✨', '🧘'];
 
 export default function JournalPage() {
   const { getJournalEntries, addJournalEntry, updateJournalEntry, deleteJournalEntry } = useAuth()
+  const { t, lang, dir } = useLanguage()
   const entries = getJournalEntries()
 
   const [isWriting, setIsWriting] = useState(false)
@@ -37,16 +39,18 @@ export default function JournalPage() {
     e.preventDefault()
     if (!title.trim() && !content.trim()) return
 
+    const defaultTitle = t('journal_title_placeholder', 'تدوينة بدون عنوان')
+
     if (editingId) {
       await updateJournalEntry(editingId, {
-        title: title.trim() || 'تدوينة بدون عنوان',
+        title: title.trim() || defaultTitle,
         content: content.trim(),
         mood,
         tags
       })
     } else {
       await addJournalEntry({
-        title: title.trim() || 'تدوينة بدون عنوان',
+        title: title.trim() || defaultTitle,
         content: content.trim(),
         mood,
         tags
@@ -74,7 +78,6 @@ export default function JournalPage() {
     setIsWriting(false)
   }
 
-  // Filtered entries
   const filteredEntries = useMemo(() => {
     return entries.filter(e => {
       const matchQuery = !searchQuery || 
@@ -85,24 +88,27 @@ export default function JournalPage() {
     })
   }, [entries, searchQuery, selectedTagFilter])
 
-  // All unique tags
   const allTags = useMemo(() => {
     const set = new Set()
     entries.forEach(e => (e.tags || []).forEach(t => set.add(t)))
     return Array.from(set)
   }, [entries])
 
+  const dateLocale = lang === 'fr' ? 'fr-FR' : lang === 'en' ? 'en-US' : 'ar-MA'
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
+    <div className="max-w-4xl mx-auto space-y-8 pb-12" dir={dir}>
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold mb-2 chip">
-            <Lock size={12} /> مذكرتك الشخصية الخاصة (مشفرة ومحمية)
+            <Lock size={12} /> {t('journal_subtitle', 'مذكرتك الشخصية الخاصة (مشفرة ومحمية)')}
           </div>
-          <h1 className="text-3xl font-black gradient-text">يوميات زن</h1>
+          <h1 className="text-3xl font-black gradient-text">
+            {t('journal_title', 'مذكرتي الخاصة والسرية')}
+          </h1>
           <p style={{ color: 'var(--subtle)' }} className="text-sm mt-1">
-            مساحتك الآمنة لكتابة خواطرك، تفريغ مشاعرك، وتوثيق لحظات الامتنان اليومية.
+            {t('journal_subtitle', 'مساحتك الآمنة لكتابة خواطرك، تفريغ مشاعرك، وتوثيق لحظات الامتنان اليومية.')}
           </p>
         </div>
 
@@ -112,7 +118,7 @@ export default function JournalPage() {
             className="btn-zen flex items-center justify-center gap-2 px-6 py-3 font-bold shadow-xl shrink-0"
           >
             <Plus size={18} />
-            <span>تدوينة جديدة (+15 XP)</span>
+            <span>{t('journal_new_btn', 'تدوينة جديدة')} (+25 XP)</span>
           </button>
         )}
       </motion.div>
@@ -129,7 +135,7 @@ export default function JournalPage() {
             <div className="flex justify-between items-center pb-2 border-b border-white/5">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Edit3 size={18} className="text-[#6ee7b7]" />
-                <span>{editingId ? 'تعديل التدوينة' : 'كتابة تدوينة جديدة'}</span>
+                <span>{editingId ? t('common_edit', 'تعديل التدوينة') : t('journal_new_btn', 'كتابة تدوينة جديدة')}</span>
               </h2>
               <button onClick={resetForm} className="p-2 text-[var(--muted)] hover:text-white rounded-lg">
                 <X size={20} />
@@ -138,7 +144,6 @@ export default function JournalPage() {
 
             {/* Title & Mood */}
             <div className="flex gap-3">
-              {/* Mood selector */}
               <div className="flex items-center gap-1 bg-white/5 px-3 py-2 rounded-2xl border border-white/5">
                 {JOURNAL_MOODS.map(m => (
                   <button
@@ -154,7 +159,7 @@ export default function JournalPage() {
 
               <input
                 type="text"
-                placeholder="عنوان التدوينة..."
+                placeholder={t('journal_title_placeholder', 'عنوان التدوينة...')}
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 className="zen-input flex-1 font-bold text-base"
@@ -164,7 +169,7 @@ export default function JournalPage() {
             {/* Content area */}
             <textarea
               rows={7}
-              placeholder="عبر عما يجول في خاطرك بكل حرية وأمان... لا أحد يقرأ هذا غيرك."
+              placeholder={t('journal_body_placeholder', 'عبر عما يجول في خاطرك بكل حرية وأمان... لا أحد يقرأ هذا غيرك.')}
               value={content}
               onChange={e => setContent(e.target.value)}
               className="zen-input resize-none leading-relaxed text-sm"
@@ -182,7 +187,7 @@ export default function JournalPage() {
               </div>
               <input
                 type="text"
-                placeholder="أضف وسماً واضغط Enter (مثال: امتنان، تفكير، أهداف)..."
+                placeholder={t('journal_tags_placeholder', 'أضف وسماً واضغط Enter...')}
                 value={tagInput}
                 onChange={e => setTagInput(e.target.value)}
                 onKeyDown={handleAddTag}
@@ -194,10 +199,10 @@ export default function JournalPage() {
             <div className="flex gap-3 pt-2">
               <button onClick={handleSave} className="btn-zen flex-1 py-3 font-bold flex items-center justify-center gap-2">
                 <CheckCircle2 size={16} />
-                <span>حفظ في مذكرتك</span>
+                <span>{t('journal_save_btn', 'حفظ في مذكرتك')}</span>
               </button>
               <button onClick={resetForm} className="btn-ghost px-6 text-xs">
-                إلغاء
+                {t('common_cancel', 'إلغاء')}
               </button>
             </div>
           </motion.div>
@@ -210,7 +215,7 @@ export default function JournalPage() {
           <Search size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
           <input
             type="text"
-            placeholder="بحث في مذكراتك..."
+            placeholder={t('journal_search_placeholder', 'بحث في مذكراتك...')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="zen-input pr-11 py-3 text-sm"
@@ -244,15 +249,17 @@ export default function JournalPage() {
           <div className="w-16 h-16 rounded-3xl mx-auto flex items-center justify-center text-3xl bg-white/5 text-[var(--subtle)]">
             📖
           </div>
-          <h3 className="text-xl font-bold text-white">لا توجد تدوينات بعد</h3>
+          <h3 className="text-xl font-bold text-white">
+            {t('journal_empty', 'المذكرة فارغة حتى الآن')}
+          </h3>
           <p className="text-xs max-w-sm mx-auto text-[var(--muted)] leading-relaxed">
-            البدء في كتابة الأفكار خطوة ممتازة لصفاء الذهن وتقليل التوتر. اضغط على "تدوينة جديدة" وابدأ الآن.
+            {t('journal_subtitle', 'البدء في كتابة الأفكار خطوة ممتازة لصفاء الذهن وتقليل التوتر. اضغط على "تدوينة جديدة" وابدأ الآن.')}
           </p>
           <button
             onClick={() => setIsWriting(true)}
             className="btn-zen px-6 py-2.5 text-xs font-bold"
           >
-            كتابة أول تدوينة (+15 XP)
+            {t('journal_new_btn', 'كتابة أول تدوينة')} (+25 XP)
           </button>
         </div>
       ) : (
@@ -260,39 +267,35 @@ export default function JournalPage() {
           {filteredEntries.map(entry => (
             <motion.div
               key={entry.id}
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass p-6 rounded-[2rem] border border-white/5 flex flex-col justify-between hover:border-white/10 transition-all group"
+              className="glass p-6 rounded-[2rem] border border-white/5 hover:border-white/10 transition-all flex flex-col justify-between group"
             >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{entry.mood || '🌿'}</span>
-                    <span className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>
-                      {new Date(entry.created_at).toLocaleDateString('ar-MA', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                  </div>
-
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl p-2 rounded-2xl bg-white/5">{entry.mood || '🌿'}</span>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleEdit(entry)}
-                      className="p-1.5 rounded-lg text-[var(--subtle)] hover:text-white hover:bg-white/5"
-                      title="تعديل"
+                      className="p-2 rounded-xl text-[var(--subtle)] hover:text-white hover:bg-white/5"
+                      title={t('common_edit', 'تعديل')}
                     >
                       <Edit3 size={15} />
                     </button>
                     <button
                       onClick={() => setDeleteConfirmId(entry.id)}
-                      className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10"
-                      title="حذف"
+                      className="p-2 rounded-xl text-red-400 hover:bg-red-500/10"
+                      title={t('common_delete', 'حذف')}
                     >
                       <Trash2 size={15} />
                     </button>
                   </div>
                 </div>
 
-                <h3 className="font-bold text-base text-white mb-2 leading-snug">{entry.title}</h3>
-                <p className="text-xs leading-relaxed text-[var(--subtle)] whitespace-pre-wrap line-clamp-4">
+                <h3 className="text-base font-bold text-white group-hover:text-[#6ee7b7] transition-colors">
+                  {entry.title}
+                </h3>
+                <p className="text-xs text-[var(--subtle)] line-clamp-4 leading-relaxed whitespace-pre-wrap">
                   {entry.content}
                 </p>
               </div>
@@ -322,7 +325,7 @@ export default function JournalPage() {
               className="glass p-8 rounded-3xl max-w-sm w-full text-center border border-white/10"
             >
               <Trash2 size={36} className="mx-auto mb-3 text-red-400" />
-              <h3 className="text-lg font-bold text-white mb-2">تأكيد حذف التدوينة؟</h3>
+              <h3 className="text-lg font-bold text-white mb-2">{t('common_confirm', 'تأكيد الحذف')}</h3>
               <p className="text-xs text-[var(--muted)] mb-6 leading-relaxed">
                 هل أنت متأكد من حذف هذه التدوينة؟ لن تتمكن من استرجاعها بعد الحذف.
               </p>
@@ -334,13 +337,13 @@ export default function JournalPage() {
                   }}
                   className="flex-1 py-3 bg-red-500 hover:bg-red-600 rounded-xl text-xs font-bold text-white shadow-lg"
                 >
-                  نعم، احذف
+                  {t('common_delete', 'حذف')}
                 </button>
                 <button
                   onClick={() => setDeleteConfirmId(null)}
                   className="btn-ghost flex-1 py-3 text-xs"
                 >
-                  تراجع
+                  {t('common_cancel', 'تراجع')}
                 </button>
               </div>
             </motion.div>

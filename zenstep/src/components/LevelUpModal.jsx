@@ -1,15 +1,21 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Trophy, ArrowRight } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 
 export default function LevelUpModal() {
   const { levelUpData, setLevelUpData } = useAuth()
+  const { t, lang, dir } = useLanguage()
 
   if (!levelUpData) return null
 
+  const levelTitle = (lang === 'ar' || lang === 'darija') 
+    ? (levelUpData.titleAr || levelUpData.title)
+    : levelUpData.title
+
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" dir={dir}>
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -47,21 +53,21 @@ export default function LevelUpModal() {
           </div>
 
           <h2 className="text-3xl font-black gradient-text mb-1">
-            المستوى {levelUpData.level}
+            {t('nav_level', 'المستوى')} {levelUpData.level}
           </h2>
           <p className="text-lg font-bold text-white mb-2">
-            {levelUpData.titleAr || levelUpData.title}
+            {levelTitle}
           </p>
 
           <p className="text-xs leading-relaxed mb-6" style={{ color: 'var(--subtle)' }}>
-            تهانينا! خطواتك المستمرة واعتناؤك بنفسك وعقلك يصنعان فارقاً حقيقياً كل يوم. استمر في رحلة السلام والسكينة.
+            {t('levelup_congrats', 'تهانينا! خطواتك المستمرة واعتناؤك بنفسك وعقلك يصنعان فارقاً حقيقياً كل يوم.')}
           </p>
 
           <button
             onClick={() => setLevelUpData(null)}
             className="btn-zen w-full py-3.5 flex items-center justify-center gap-2 text-sm font-bold shadow-xl"
           >
-            <span>واصل المسيرة</span>
+            <span>{t('levelup_continue', 'واصل المسيرة ✨')}</span>
             <ArrowRight size={16} />
           </button>
         </motion.div>

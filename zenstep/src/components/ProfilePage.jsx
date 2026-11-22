@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { User, Shield, Bell, Volume2, Globe, Key, Download, Trash2, Trophy, Flame, Sparkles, CheckCircle2, Camera, Upload } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
@@ -73,6 +73,18 @@ export default function ProfilePage() {
 
   const [username, setUsername] = useState(profile?.username || '')
   const [selectedAvatar, setSelectedAvatar] = useState(getCleanInitialAvatar)
+
+  useEffect(() => {
+    if (profile?.username) setUsername(profile.username)
+    if (profile?.avatar_url) {
+      const trimmed = profile.avatar_url.trim()
+      if (isImageUrl(trimmed) || AVATAR_PRESETS.includes(trimmed)) {
+        setSelectedAvatar(trimmed)
+      } else {
+        setSelectedAvatar('🌱')
+      }
+    }
+  }, [profile?.username, profile?.avatar_url])
   const [language, setLanguage] = useState(lang || profile?.language || 'ar')
   const [notifEnabled, setNotifEnabled] = useState(profile?.settings?.notifications ?? true)
   const [soundEnabled, setSoundEnabled] = useState(profile?.settings?.sounds ?? true)
@@ -177,41 +189,41 @@ export default function ProfilePage() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
         className="glass p-6 md:p-8 rounded-[2.5rem] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden"
       >
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-5 min-w-0">
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl shadow-2xl relative overflow-hidden shrink-0 select-none cursor-pointer group"
+            className="w-20 h-20 rounded-3xl flex items-center justify-center text-3xl shadow-2xl relative overflow-hidden shrink-0 select-none cursor-pointer group border border-white/10"
             style={{ background: 'linear-gradient(135deg, #6ee7b7, #a78bfa)', color: '#0d1117' }}
             title={t('profile_upload_gallery', 'اختر صورة من المعرض 📸')}
           >
-            {renderAvatarContent({ ...profile, avatar_url: selectedAvatar }, lv.emoji)}
+            {renderAvatarContent({ username: profile?.username, avatar_url: selectedAvatar }, lv.emoji)}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold">
               <Camera size={22} className="text-white drop-shadow-md" />
             </div>
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-black text-white truncate max-w-xs">{profile?.username || 'صاحبي'}</h1>
+              <h1 className="text-2xl font-black text-white truncate max-w-xs">{profile?.username || t('dash_friend', 'صاحبي')}</h1>
               <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-[#6ee7b7]/15 text-[#6ee7b7] shrink-0">
-                Lv.{lv.level} • {lv.titleAr || lv.title}
+                Lv.{lv.level} • {(lang === 'ar' || lang === 'darija') ? (lv.titleAr || lv.title) : lv.title}
               </span>
             </div>
-            <p className="text-xs text-[var(--muted)] mt-1">{user?.email || 'حساب محلي'}</p>
+            <p className="text-xs text-[var(--muted)] mt-1">{user?.email || (lang === 'fr' ? 'Compte Local' : lang === 'en' ? 'Local Account' : 'حساب محلي')}</p>
             <div className="flex items-center gap-4 mt-3">
               <div className="flex items-center gap-1.5 text-xs text-[var(--subtle)]">
                 <Sparkles size={14} className="text-[#6ee7b7]" />
-                <span>{xp} XP إجمالي</span>
+                <span>{xp} XP {t('dash_xp', 'إجمالي')}</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-[var(--subtle)]">
                 <Flame size={14} className="text-[#fcd34d]" />
-                <span>{streak} يوم متواصل</span>
+                <span>{streak} {t('nav_streak_days', 'يوم متواصل')}</span>
               </div>
             </div>
           </div>
         </div>
 
         <button onClick={signOut} className="btn-ghost text-xs px-5 py-2.5 text-red-400 hover:bg-red-500/10 border-red-500/20">
-          تسجيل الخروج
+          {t('nav_logout', 'تسجيل الخروج')}
         </button>
       </motion.div>
 
@@ -220,14 +232,17 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Trophy size={18} className="text-[#fcd34d]" />
-            <span>الأوسمة والإنجازات ({unlocked.length} / {ACHIEVEMENTS.length})</span>
+            <span>{t('profile_achievements', 'الأوسمة والإنجازات')} ({unlocked.length} / {ACHIEVEMENTS.length})</span>
           </h2>
-          <span className="text-xs text-[var(--muted)]">اكسب الأوسمة مع تقدمك في التمارين</span>
+          <span className="text-xs text-[var(--muted)]">
+            {lang === 'fr' ? 'Gagnez des badges en complétant vos exercices' : lang === 'en' ? 'Earn badges as you complete wellness exercises' : 'اكسب الأوسمة مع تقدمك في التمارين'}
+          </span>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {ACHIEVEMENTS.map(ach => {
             const isUnlocked = unlocked.includes(ach.id)
+            const achTitle = (lang === 'en' || lang === 'fr') ? (ach.titleEn || ach.title) : ach.title
             return (
               <div
                 key={ach.id}
@@ -239,11 +254,11 @@ export default function ProfilePage() {
                 }}
               >
                 <span className="text-3xl mb-1">{ach.icon}</span>
-                <p className="font-bold text-xs text-white">{ach.title}</p>
+                <p className="font-bold text-xs text-white">{achTitle}</p>
                 <p className="text-[10px] text-[var(--muted)] leading-relaxed">{ach.description}</p>
                 {isUnlocked && (
                   <span className="text-[9px] font-bold text-[#6ee7b7] mt-1 bg-[#6ee7b7]/10 px-2 py-0.5 rounded-full">
-                    مكتمل ✓
+                    {lang === 'fr' ? '✓ Obtenu' : lang === 'en' ? '✓ Unlocked' : 'مكتمل ✓'}
                   </span>
                 )}
               </div>
@@ -258,11 +273,13 @@ export default function ProfilePage() {
         <div className="glass p-6 md:p-8 rounded-[2rem] border border-white/5 space-y-5">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <User size={18} className="text-[#6ee7b7]" />
-            <span>الملف الشخصي والمظهر</span>
+            <span>{t('profile_title', 'الملف الشخصي والمظهر')}</span>
           </h2>
 
           <div>
-            <label className="block text-xs font-bold text-[var(--subtle)] mb-1.5">اسم المستخدم</label>
+            <label className="block text-xs font-bold text-[var(--subtle)] mb-1.5">
+              {t('profile_username', 'اسم المستخدم')}
+            </label>
             <input
               type="text"
               value={username}
@@ -359,7 +376,7 @@ export default function ProfilePage() {
           )}
 
           <button onClick={handleSaveProfile} className="btn-zen w-full py-3 font-bold text-xs">
-            حفظ إعدادات الملف
+            {t('common_save', 'حفظ إعدادات الملف')}
           </button>
         </div>
 
@@ -367,7 +384,7 @@ export default function ProfilePage() {
         <div className="glass p-6 md:p-8 rounded-[2rem] border border-white/5 space-y-5">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Shield size={18} className="text-[#a78bfa]" />
-            <span>الأمان والتفضيلات</span>
+            <span>{t('profile_subtitle', 'الأمان والتفضيلات')}</span>
           </h2>
 
           {/* Preferences toggles */}
@@ -375,7 +392,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between p-3 rounded-2xl bg-black/20 border border-white/5">
               <div className="flex items-center gap-2.5">
                 <Bell size={16} className="text-[var(--subtle)]" />
-                <span className="text-xs font-bold text-white">الإشعارات اليومية والتذكيرات</span>
+                <span className="text-xs font-bold text-white">{t('profile_notifications', 'الإشعارات اليومية والتذكيرات')}</span>
               </div>
               <input
                 type="checkbox"
@@ -388,7 +405,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between p-3 rounded-2xl bg-black/20 border border-white/5">
               <div className="flex items-center gap-2.5">
                 <Volume2 size={16} className="text-[var(--subtle)]" />
-                <span className="text-xs font-bold text-white">المؤثرات الصوتية للأدوات</span>
+                <span className="text-xs font-bold text-white">{t('profile_sounds', 'المؤثرات الصوتية للأدوات')}</span>
               </div>
               <input
                 type="checkbox"
@@ -401,17 +418,17 @@ export default function ProfilePage() {
 
           {/* Password update */}
           <form onSubmit={handleChangePassword} className="space-y-3 pt-2 border-t border-white/5">
-            <label className="block text-xs font-bold text-[var(--subtle)]">تحديث كلمة السر</label>
+            <label className="block text-xs font-bold text-[var(--subtle)]">{t('profile_change_pwd', 'تحديث كلمة السر')}</label>
             <input
               type="password"
-              placeholder="كلمة السر الجديدة..."
+              placeholder="••••••••"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
               className="zen-input text-xs"
             />
             {pwMsg && <p className="text-xs text-[#6ee7b7] font-semibold">{pwMsg}</p>}
             <button type="submit" className="btn-ghost w-full py-2.5 text-xs font-bold">
-              تغيير كلمة السر
+              {t('profile_change_pwd', 'تغيير كلمة السر')}
             </button>
           </form>
 
@@ -422,7 +439,7 @@ export default function ProfilePage() {
               className="w-full py-2.5 rounded-xl text-xs font-bold glass flex items-center justify-center gap-2 text-[var(--subtle)] hover:text-white"
             >
               <Download size={14} />
-              <span>تصدير بياناتي (JSON Export)</span>
+              <span>{t('profile_export', 'تصدير بياناتي (JSON Export)')}</span>
             </button>
 
             <button
@@ -430,7 +447,7 @@ export default function ProfilePage() {
               className="w-full py-2.5 rounded-xl text-xs font-bold text-red-400 hover:bg-red-500/10 flex items-center justify-center gap-2"
             >
               <Trash2 size={14} />
-              <span>حذف حسابي وبياناتي</span>
+              <span>{t('profile_delete_acc', 'حذف حسابي وبياناتي')}</span>
             </button>
           </div>
         </div>
@@ -447,22 +464,22 @@ export default function ProfilePage() {
               className="glass p-8 rounded-3xl max-w-sm w-full text-center border border-white/10"
             >
               <Trash2 size={36} className="mx-auto mb-3 text-red-400" />
-              <h3 className="text-lg font-bold text-white mb-2">تأكيد حذف الحساب؟</h3>
+              <h3 className="text-lg font-bold text-white mb-2">{t('profile_delete_acc', 'تأكيد حذف الحساب؟')}</h3>
               <p className="text-xs text-[var(--muted)] mb-6 leading-relaxed">
-                هل أنت متأكد تماماً من رغبتك في حذف حسابك؟ سيتم مسح جميع نقاطك ومذكراتك وسجلات المزاج نهائياً.
+                هل أنت متأكد تماماً من رغبتك في حذف حسابك؟
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={handleDeleteAccount}
                   className="flex-1 py-3 bg-red-500 hover:bg-red-600 rounded-xl text-xs font-bold text-white shadow-lg"
                 >
-                  نعم، احذف الحساب
+                  {t('common_delete', 'نعم، احذف الحساب')}
                 </button>
                 <button
                   onClick={() => setShowDeleteModal(false)}
                   className="btn-ghost flex-1 py-3 text-xs"
                 >
-                  تراجع
+                  {t('common_cancel', 'تراجع')}
                 </button>
               </div>
             </motion.div>

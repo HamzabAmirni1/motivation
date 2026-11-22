@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import { getDailyQuests } from '../lib/quests'
 
 const CAT_LABELS = {
@@ -14,6 +15,7 @@ const CAT_LABELS = {
 
 export default function DailyQuest({ onXP }) {
   const { getCompletedQuests, markQuestDone, addXP, updateStreak } = useAuth()
+  const { t } = useLanguage()
   const [quests, setQuests] = useState(getDailyQuests())
   const completed = getCompletedQuests()
   const [justDone, setJustDone] = useState(null)
@@ -44,8 +46,10 @@ export default function DailyQuest({ onXP }) {
   return (
     <div className="glass p-5 mb-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-bold text-lg" style={{ color:'var(--text)' }}>🎯 مهام اليوم</h2>
-        <span className="chip">{doneCount}/{quests.length} كملتي</span>
+        <h2 className="font-bold text-lg" style={{ color:'var(--text)' }}>
+          {t('quests_title', '🎯 مهام اليوم')}
+        </h2>
+        <span className="chip">{doneCount}/{quests.length} {t('quests_done_count', 'كملتي')}</span>
       </div>
 
       {allDone && (
@@ -53,8 +57,12 @@ export default function DailyQuest({ onXP }) {
           className="mb-4 p-4 rounded-xl text-center"
           style={{ background:'rgba(110,231,183,0.1)', border:'1px solid rgba(110,231,183,0.25)' }}>
           <p className="text-2xl mb-1">🎉</p>
-          <p className="font-bold" style={{ color:'#6ee7b7' }}>مزيان عليك! كملتي كل مهام اليوم</p>
-          <p className="text-xs mt-1" style={{ color:'var(--muted)' }}>رجع غدا على مهام جديدة</p>
+          <p className="font-bold" style={{ color:'#6ee7b7' }}>
+            {t('quests_all_done', 'مزيان عليك! كملتي كل مهام اليوم')}
+          </p>
+          <p className="text-xs mt-1" style={{ color:'var(--muted)' }}>
+            {t('quests_come_back_tomorrow', 'رجع غدا على مهام جديدة')}
+          </p>
         </motion.div>
       )}
 
@@ -97,7 +105,7 @@ export default function DailyQuest({ onXP }) {
                     onClick={(e) => handleComplete(e, quest)}
                     className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all relative z-10"
                     style={{ background:'linear-gradient(135deg,#6ee7b7,#34d399)', color:'#0a0f1a' }}>
-                    كملت ✓
+                    {t('quests_complete_btn', 'كملت ✓')}
                   </motion.button>
                 )}
               </AnimatePresence>

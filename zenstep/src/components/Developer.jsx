@@ -1,21 +1,24 @@
 import { motion } from 'framer-motion'
-
-const LINKS = [
-  { label: 'الموقع الشخصي (Portfolio)', url: 'https://hamzaamirni.netlify.app', icon: '🌐', color: '#6ee7b7' },
-  { label: 'قناة الواتساب الرسمية', url: 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p', icon: '💬', color: '#25D366' },
-  { label: 'انستغرام (الحساب الأول)', url: 'https://instagram.com/hamza_amirni_01', icon: '📸', color: '#E1306C' },
-  { label: 'انستغرام (الحساب الثاني)', url: 'https://instagram.com/hamza_amirni_02', icon: '📸', color: '#C13584' },
-  { label: 'قناة الانستغرام', url: 'https://www.instagram.com/channel/AbbqrMVbExH_EZLD/', icon: '📢', color: '#F77737' },
-  { label: 'فيسبوك (الحساب الشخصي)', url: 'https://www.facebook.com/6kqzuj3y4e', icon: '👤', color: '#1877F2' },
-  { label: 'صفحة الفيسبوك الرسمية', url: 'https://www.facebook.com/profile.php?id=61564527797752', icon: '📄', color: '#0866FF' },
-  { label: 'قناة اليوتيوب', url: 'https://www.youtube.com/@Hamzaamirni01', icon: '🎥', color: '#FF0000' },
-  { label: 'تيليغرام', url: 'https://t.me/hamzaamirni', icon: '✈️', color: '#0088cc' },
-  { label: 'مجموعات الواتساب', url: 'https://chat.whatsapp.com/DDb3fGPuZPB1flLc1BV9gJ', icon: '👥', color: '#128C7E' },
-]
+import { useLanguage } from '../contexts/LanguageContext'
 
 export default function Developer() {
+  const { t, dir } = useLanguage()
+
+  const LINKS = [
+    { label: t('dev_portfolio', 'الموقع الشخصي (Portfolio)'), url: 'https://hamzaamirni.netlify.app', icon: '🌐', color: '#6ee7b7' },
+    { label: t('dev_whatsapp_channel', 'قناة الواتساب الرسمية'), url: 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p', icon: '💬', color: '#25D366' },
+    { label: t('dev_instagram_1', 'انستغرام (الحساب الأول)'), url: 'https://instagram.com/hamza_amirni_01', icon: '📸', color: '#E1306C' },
+    { label: t('dev_instagram_2', 'انستغرام (الحساب الثاني)'), url: 'https://instagram.com/hamza_amirni_02', icon: '📸', color: '#C13584' },
+    { label: t('dev_instagram_channel', 'قناة الانستغرام'), url: 'https://www.instagram.com/channel/AbbqrMVbExH_EZLD/', icon: '📢', color: '#F77737' },
+    { label: t('dev_facebook_profile', 'فيسبوك (الحساب الشخصي)'), url: 'https://www.facebook.com/6kqzuj3y4e', icon: '👤', color: '#1877F2' },
+    { label: t('dev_facebook_page', 'صفحة الفيسبوك الرسمية'), url: 'https://www.facebook.com/profile.php?id=61564527797752', icon: '📄', color: '#0866FF' },
+    { label: t('dev_youtube', 'قناة اليوتيوب'), url: 'https://www.youtube.com/@Hamzaamirni01', icon: '🎥', color: '#FF0000' },
+    { label: t('dev_telegram', 'تيليغرام'), url: 'https://t.me/hamzaamirni', icon: '✈️', color: '#0088cc' },
+    { label: t('dev_whatsapp_group', 'مجموعات الواتساب'), url: 'https://chat.whatsapp.com/DDb3fGPuZPB1flLc1BV9gJ', icon: '👥', color: '#128C7E' },
+  ]
+
   return (
-    <div className="max-w-2xl mx-auto py-10 px-4">
+    <div className="max-w-2xl mx-auto py-10 px-4" dir={dir}>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10">
         <div className="w-24 h-24 rounded-full mx-auto mb-4 p-1 overflow-hidden" 
           style={{ background: 'linear-gradient(45deg, #6ee7b7, #a78bfa, #f472b6)' }}>
@@ -24,7 +27,9 @@ export default function Developer() {
           </div>
         </div>
         <h1 className="text-3xl font-black gradient-text mb-2">Hamza Amirni</h1>
-        <p style={{ color: 'var(--muted)' }} className="text-sm">Developer & Creator of ZenStep</p>
+        <p style={{ color: 'var(--muted)' }} className="text-sm">
+          {t('dev_role', 'مطور ومؤسس ZenStep')}
+        </p>
       </motion.div>
 
       <div className="grid gap-4">
@@ -55,7 +60,7 @@ export default function Developer() {
       </div>
 
       <p className="text-center text-xs mt-10" style={{ color: 'var(--muted)' }}>
-        Made with 💚 by Hamza Amirni
+        {t('dev_made_with', 'صُنع بـ 💚 من طرف حمزة أميرني')}
       </p>
     </div>
   )

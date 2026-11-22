@@ -1,13 +1,17 @@
 import { motion } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import { calculateLevel, getXPProgress } from '../lib/gamification'
 
 export default function XPBar() {
   const { profile } = useAuth()
+  const { t, lang } = useLanguage()
   const xp      = profile?.xp || 0
   const lv      = calculateLevel(xp)
   const prog    = getXPProgress(xp)
   const streak  = profile?.streak_count || 0
+
+  const levelTitle = (lang === 'ar' || lang === 'darija') ? (lv.titleAr || lv.title) : lv.title
 
   return (
     <div className="glass p-5 mb-6">
@@ -15,21 +19,23 @@ export default function XPBar() {
         <div className="flex items-center gap-3">
           <span className="text-3xl">{lv.emoji}</span>
           <div>
-            <p className="font-bold text-base" style={{ color:'var(--text)' }}>{lv.title}</p>
-            <p className="text-xs" style={{ color:'var(--muted)' }}>المستوى {lv.level}</p>
+            <p className="font-bold text-base" style={{ color:'var(--text)' }}>{levelTitle}</p>
+            <p className="text-xs" style={{ color:'var(--muted)' }}>
+              {t('nav_level', 'المستوى')} {lv.level}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-center">
             <p className="text-2xl font-black gradient-text">{xp}</p>
-            <p className="text-xs" style={{ color:'var(--muted)' }}>نقاط XP</p>
+            <p className="text-xs" style={{ color:'var(--muted)' }}>{t('dash_xp', 'نقاط XP')}</p>
           </div>
           <div className="text-center">
             <div className="flex items-center gap-1">
               <span className="text-xl">🔥</span>
               <p className="text-2xl font-black" style={{ color:'#fcd34d' }}>{streak}</p>
             </div>
-            <p className="text-xs" style={{ color:'var(--muted)' }}>يوم متتابع</p>
+            <p className="text-xs" style={{ color:'var(--muted)' }}>{t('nav_streak_days', 'يوم متتابع')}</p>
           </div>
         </div>
       </div>
@@ -39,8 +45,8 @@ export default function XPBar() {
         <div className="flex justify-between text-xs mb-1.5" style={{ color:'var(--muted)' }}>
           <span>{prog.current} XP</span>
           {prog.nextLevel
-            ? <span>المستوى {prog.nextLevel.level}: {prog.total} XP</span>
-            : <span>أقصى مستوى 🏆</span>
+            ? <span>{t('nav_level', 'المستوى')} {prog.nextLevel.level}: {prog.total} XP</span>
+            : <span>{t('xp_max_level', 'أقصى مستوى 🏆')}</span>
           }
         </div>
         <div className="h-2.5 rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,0.06)' }}>

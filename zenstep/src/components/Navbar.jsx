@@ -4,7 +4,7 @@ import {
   Home, Smile, BookOpen, Sparkles, Bot, Compass,
   Headphones, Target, Gamepad2, User, ShieldAlert,
   Code2, LogOut, Bell, Menu, X, Flame, ChevronLeft,
-  Globe, Check
+  Globe, Check, Users
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -26,20 +26,32 @@ export function renderAvatarContent(profile, fallbackEmoji = '🌱') {
   const url = profile?.avatar_url
   if (typeof url === 'string') {
     const trimmed = url.trim()
+    // Genuine image URL or base64 image
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('/') || trimmed.startsWith('data:image')) {
-      return <img src={trimmed} alt="Avatar" className="w-full h-full object-cover" />
+      return (
+        <img
+          src={trimmed}
+          alt="Avatar"
+          className="w-full h-full object-cover pointer-events-none"
+          onError={(e) => {
+            // Hide broken image
+            e.currentTarget.style.display = 'none'
+          }}
+        />
+      )
     }
-    // Only accept if it is a genuine short emoji or avatar symbol (1-4 chars)
-    if (trimmed.length > 0 && trimmed.length <= 4) {
-      return <span>{trimmed}</span>
+    // Genuine short emoji (1 to 4 chars) and not an alphanumeric ID or token like "3vSU6et..."
+    if (trimmed.length > 0 && trimmed.length <= 4 && !/^[A-Za-z0-9_-]+$/.test(trimmed)) {
+      return <span className="select-none text-center truncate max-w-full leading-none">{trimmed}</span>
     }
   }
-  // Otherwise use first letter of username or fallback
+  // Otherwise use ONLY the first single character of username
   const uname = profile?.username?.trim()
   if (uname && uname.length > 0) {
-    return <span className="font-bold select-none">{uname[0].toUpperCase()}</span>
+    const firstChar = Array.from(uname)[0]
+    return <span className="font-black select-none text-center uppercase leading-none">{firstChar}</span>
   }
-  return <span className="select-none">{fallbackEmoji}</span>
+  return <span className="select-none text-center leading-none">{fallbackEmoji}</span>
 }
 
 export default function Navbar({ page, setPage }) {
@@ -57,6 +69,7 @@ export default function Navbar({ page, setPage }) {
     { id: 'mood',      label: t('nav_mood'),      icon: Smile },
     { id: 'journal',   label: t('nav_journal'),   icon: BookOpen },
     { id: 'tools',     label: t('nav_tools'),     icon: Sparkles },
+    { id: 'community', label: t('nav_community'), icon: Users },
     { id: 'zenbot',    label: t('nav_zenbot'),    icon: Bot },
   ]
 
@@ -65,9 +78,10 @@ export default function Navbar({ page, setPage }) {
     {
       category: t('drawer_relax_activities'),
       items: [
-        { id: 'sounds',  label: t('nav_sounds'), desc: t('drawer_sounds_desc'), icon: Headphones, color: '#7dd3fc' },
-        { id: 'habits',  label: t('nav_habits'), desc: t('drawer_habits_desc'), icon: Target,     color: '#6ee7b7' },
-        { id: 'games',   label: t('nav_games'),  desc: t('drawer_games_desc'),  icon: Gamepad2,   color: '#a78bfa' },
+        { id: 'community', label: t('nav_community'), desc: t('comm_subtitle', 'محادثة واحدة مشتركة للجميع'), icon: Users,      color: '#6ee7b7' },
+        { id: 'sounds',    label: t('nav_sounds'),    desc: t('drawer_sounds_desc'),                           icon: Headphones, color: '#7dd3fc' },
+        { id: 'habits',    label: t('nav_habits'),    desc: t('drawer_habits_desc'),                           icon: Target,     color: '#6ee7b7' },
+        { id: 'games',     label: t('nav_games'),     desc: t('drawer_games_desc'),                            icon: Gamepad2,   color: '#a78bfa' },
       ]
     },
     {

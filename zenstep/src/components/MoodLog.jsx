@@ -1,17 +1,19 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
-
-const MOODS = [
-  { score:1, label:'كارطة',    emoji:'😞', color:'#f87171' },
-  { score:2, label:'مش مزيان', emoji:'😔', color:'#fbbf24' },
-  { score:3, label:'عادي',     emoji:'😐', color:'#94a3b8' },
-  { score:4, label:'مزيان',    emoji:'😊', color:'#6ee7b7' },
-  { score:5, label:'رائع!',    emoji:'🤩', color:'#a78bfa' },
-]
+import { useLanguage } from '../contexts/LanguageContext'
 
 export default function MoodLog() {
   const { getMoodLogs, addMoodLog, addXP } = useAuth()
+  const { t } = useLanguage()
+
+  const MOODS = [
+    { score:1, id:'terrible', label: t('moodlog_terrible', 'كارطة'),    emoji:'😞', color:'#f87171' },
+    { score:2, id:'bad',      label: t('moodlog_bad', 'مش مزيان'),      emoji:'😔', color:'#fbbf24' },
+    { score:3, id:'neutral',  label: t('moodlog_neutral', 'عادي'),      emoji:'😐', color:'#94a3b8' },
+    { score:4, id:'good',     label: t('moodlog_good', 'مزيان'),        emoji:'😊', color:'#6ee7b7' },
+    { score:5, id:'great',    label: t('moodlog_great', 'رائع!'),       emoji:'🤩', color:'#a78bfa' },
+  ]
   const [selected, setSelected]  = useState(null)
   const [note,     setNote]      = useState('')
   const [saved,    setSaved]     = useState(false)
@@ -31,11 +33,15 @@ export default function MoodLog() {
 
   return (
     <div className="glass p-5 mb-5">
-      <h2 className="font-bold text-lg mb-4" style={{ color:'var(--text)' }}>💫 كيف داير هاد النهار؟</h2>
+      <h2 className="font-bold text-lg mb-4" style={{ color:'var(--text)' }}>
+        {t('moodlog_title', '💫 كيف داير هاد النهار؟')}
+      </h2>
 
       {todayLogged && !saved ? (
         <div className="p-3 rounded-xl text-center mb-4" style={{ background:'rgba(110,231,183,0.08)', border:'1px solid rgba(110,231,183,0.15)' }}>
-          <p className="text-sm" style={{ color:'#6ee7b7' }}>سجلتي حالتك اليوم ✓  رجع غدا!</p>
+          <p className="text-sm" style={{ color:'#6ee7b7' }}>
+            {t('moodlog_today_done', 'سجلتي حالتك اليوم ✓  رجع غدا!')}
+          </p>
         </div>
       ) : (
         <>
@@ -58,9 +64,9 @@ export default function MoodLog() {
             {selected && (
               <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:'auto' }} exit={{ opacity:0, height:0 }}>
                 <textarea className="zen-input resize-none mb-3" rows={2}
-                  placeholder="شي ملاحظة؟ (اختياري)" value={note} onChange={e => setNote(e.target.value)} />
+                  placeholder={t('moodlog_note_placeholder', 'شي ملاحظة؟ (اختياري)')} value={note} onChange={e => setNote(e.target.value)} />
                 <motion.button whileTap={{ scale:0.97 }} onClick={handleSave} className="btn-zen w-full text-sm">
-                  {saved ? '✓ تسجيل' : 'سجل الحالة +5 XP'}
+                  {saved ? '✓ ' + t('common_saved', 'تم التسجيل') : t('moodlog_submit', 'سجل الحالة +5 XP')}
                 </motion.button>
               </motion.div>
             )}
@@ -71,7 +77,9 @@ export default function MoodLog() {
       {/* Recent mood log */}
       {logs.length > 0 && (
         <div className="mt-4">
-          <p className="text-xs font-semibold mb-2" style={{ color:'var(--muted)' }}>السجل الأخير</p>
+          <p className="text-xs font-semibold mb-2" style={{ color:'var(--muted)' }}>
+            {t('moodlog_recent', 'السجل الأخير')}
+          </p>
           <div className="flex gap-2 flex-wrap">
             {logs.slice(0, 7).map((l, i) => {
               const m = MOODS.find(x => x.score === l.score) || MOODS[2]

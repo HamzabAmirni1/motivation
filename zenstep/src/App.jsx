@@ -14,6 +14,7 @@ import HabitsPage from './components/HabitsPage'
 import GamesPage from './components/GamesPage'
 import ProfilePage from './components/ProfilePage'
 import AdminDashboard from './components/AdminDashboard'
+import CommunityPage from './components/CommunityPage'
 import Developer from './components/Developer'
 import NotificationTracker from './components/NotificationTracker'
 import LevelUpModal from './components/LevelUpModal'
@@ -121,6 +122,11 @@ function AppContent() {
           {page === 'profile' && (
             <motion.div key="profile" variants={pageVariants} initial="initial" animate="animate" exit="exit">
               <ProfilePage />
+            </motion.div>
+          )}
+          {page === 'community' && (
+            <motion.div key="community" variants={pageVariants} initial="initial" animate="animate" exit="exit">
+              <CommunityPage />
             </motion.div>
           )}
           {page === 'admin' && (

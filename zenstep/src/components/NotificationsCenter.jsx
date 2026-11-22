@@ -2,16 +2,20 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, Check, CheckCheck, Sparkles, Trophy, Flame, Info, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 
 export default function NotificationsCenter({ isOpen, onClose }) {
   const { notifications, markNotificationRead, markAllNotificationsRead } = useAuth()
+  const { t, lang, dir } = useLanguage()
   const unreadCount = notifications.filter(n => !n.read).length
 
   if (!isOpen) return null
 
+  const dateLocale = lang === 'fr' ? 'fr-FR' : lang === 'en' ? 'en-US' : 'ar-MA'
+
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-start justify-end p-4 md:p-6 pt-16">
+      <div className="fixed inset-0 z-50 flex items-start justify-end p-4 md:p-6 pt-16" dir={dir}>
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -30,10 +34,10 @@ export default function NotificationsCenter({ isOpen, onClose }) {
           <div className="p-5 border-b border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell size={18} className="text-[#6ee7b7]" />
-              <h3 className="font-bold text-sm text-white">مركز الإشعارات</h3>
+              <h3 className="font-bold text-sm text-white">{t('notif_title', 'مركز الإشعارات')}</h3>
               {unreadCount > 0 && (
                 <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#6ee7b7] text-black">
-                  {unreadCount} جديد
+                  {unreadCount} {t('notif_new', 'جديد')}
                 </span>
               )}
             </div>
@@ -45,7 +49,7 @@ export default function NotificationsCenter({ isOpen, onClose }) {
                   className="text-[10px] text-[#6ee7b7] hover:underline flex items-center gap-1"
                 >
                   <CheckCheck size={12} />
-                  <span>قراءة الكل</span>
+                  <span>{t('notif_mark_all', 'قراءة الكل')}</span>
                 </button>
               )}
               <button onClick={onClose} className="p-1 rounded-lg text-[var(--muted)] hover:text-white">
@@ -58,7 +62,7 @@ export default function NotificationsCenter({ isOpen, onClose }) {
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {notifications.length === 0 ? (
               <div className="text-center py-8 text-xs text-[var(--muted)]">
-                لا توجد إشعارات حالياً
+                {t('notif_empty', 'لا توجد إشعارات حالياً')}
               </div>
             ) : (
               notifications.map(n => (
@@ -83,7 +87,7 @@ export default function NotificationsCenter({ isOpen, onClose }) {
                   </div>
                   <p className="text-[11px] text-[var(--subtle)] leading-relaxed">{n.message}</p>
                   <span className="text-[9px] text-[var(--muted)] mt-1.5 block">
-                    {new Date(n.created_at).toLocaleDateString('ar-MA', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(n.created_at).toLocaleDateString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
               ))

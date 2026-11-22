@@ -68,13 +68,13 @@ export default function Dashboard({ setPage }) {
       >
         <div className="text-center md:text-right space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold chip">
-            <Sparkles size={14} /> رحلتك نحو العافية النفسية
+            <Sparkles size={14} /> {t('dash_badge_wellness', 'رحلتك نحو العافية النفسية')}
           </div>
           <h1 className="text-3xl md:text-4xl font-black text-white">
-            {greet}، <span className="gradient-text">{profile?.username || 'صاحبي'}</span> 👋
+            {greet}، <span className="gradient-text">{profile?.username || t('dash_friend', 'صاحبي')}</span> 👋
           </h1>
           <p style={{ color: 'var(--subtle)' }} className="text-sm max-w-lg leading-relaxed">
-            خطوة صغيرة اليوم تصنع فرقاً كبيراً غداً. كيف تشعر الآن وما الذي تحب أن تبدأ به؟
+            {t('dash_greeting_sub2', 'خطوة صغيرة اليوم تصنع فرقاً كبيراً غداً. كيف تشعر الآن وما الذي تحب أن تبدأ به؟')}
           </p>
         </div>
 
@@ -166,7 +166,7 @@ export default function Dashboard({ setPage }) {
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm text-white flex items-center gap-2">
                 <Smile size={16} className="text-[#6ee7b7]" />
-                <span>منحنى تطور المزاج</span>
+                <span>{t('dash_mood_chart_title', 'منحنى تطور المزاج')}</span>
               </h3>
               
               <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ export default function Dashboard({ setPage }) {
                       moodRange === 7 ? 'bg-[#6ee7b7] text-black shadow-sm' : 'text-[var(--subtle)]'
                     }`}
                   >
-                    7 أيام
+                    {t('dash_7_days', '7 أيام')}
                   </button>
                   <button
                     onClick={() => setMoodRange(30)}
@@ -185,12 +185,12 @@ export default function Dashboard({ setPage }) {
                       moodRange === 30 ? 'bg-[#6ee7b7] text-black shadow-sm' : 'text-[var(--subtle)]'
                     }`}
                   >
-                    30 يوم
+                    {t('dash_30_days', '30 يوم')}
                   </button>
                 </div>
                 
                 <button onClick={() => setPage('mood')} className="text-xs text-[#6ee7b7] hover:underline flex items-center gap-0.5">
-                  <span>التفاصيل</span>
+                  <span>{t('dash_details', 'التفاصيل')}</span>
                   <ArrowRight size={12} />
                 </button>
               </div>
@@ -199,9 +199,9 @@ export default function Dashboard({ setPage }) {
             {recentMoods.length === 0 ? (
               <div className="py-8 text-center bg-black/20 rounded-2xl border border-white/5 space-y-2">
                 <Smile size={28} className="mx-auto text-[var(--muted)] opacity-50" />
-                <p className="text-xs text-[var(--muted)]">لم تسجل حالتك الشعورية بعد. سجل أول حالة الآن لكسب +10 XP.</p>
+                <p className="text-xs text-[var(--muted)]">{t('dash_no_mood', 'لم تسجل حالتك الشعورية بعد. سجل أول حالة الآن لكسب +10 XP.')}</p>
                 <button onClick={() => setPage('mood')} className="btn-zen px-4 py-1.5 text-xs font-bold">
-                  سجل مزاجك الآن
+                  {t('dash_log_mood_now', 'سجل مزاجك الآن')}
                 </button>
               </div>
             ) : (
@@ -214,7 +214,7 @@ export default function Dashboard({ setPage }) {
                       style={{ height: `${Math.max(15, ((m.score || 5) / 8) * 100)}%` }}
                     />
                     <span className="text-[9px] text-[var(--muted)]">
-                      {new Date(m.date).toLocaleDateString('ar-MA', { day: 'numeric', month: 'short' })}
+                      {new Date(m.date).toLocaleDateString(lang === 'fr' ? 'fr-FR' : lang === 'en' ? 'en-US' : 'ar-MA', { day: 'numeric', month: 'short' })}
                     </span>
                   </div>
                 ))}
@@ -229,19 +229,19 @@ export default function Dashboard({ setPage }) {
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm text-white flex items-center gap-2">
                 <BookOpen size={16} className="text-[#a78bfa]" />
-                <span>آخر الخواطر والمذكرات</span>
+                <span>{t('dash_recent_journals_title', 'آخر الخواطر والمذكرات')}</span>
               </h3>
               <button onClick={() => setPage('journal')} className="text-xs text-[#6ee7b7] hover:underline flex items-center gap-1">
-                <span>فتح المذكرة</span>
+                <span>{t('dash_open_journal', 'فتح المذكرة')}</span>
                 <ArrowRight size={12} />
               </button>
             </div>
 
             {journalEntries.length === 0 ? (
               <div className="p-6 text-center bg-black/20 rounded-2xl border border-white/5 space-y-2">
-                <p className="text-xs text-[var(--muted)]">مذكرتك الخاصة فارغة حالياً. التدوين يساعد على تفريغ الشحنات السلبية وتصفية الذهن.</p>
+                <p className="text-xs text-[var(--muted)]">{t('dash_no_journals', 'مذكرتك الخاصة فارغة حالياً. التدوين يساعد على تفريغ الشحنات السلبية وتصفية الذهن.')}</p>
                 <button onClick={() => setPage('journal')} className="btn-zen px-4 py-1.5 text-xs font-bold">
-                  اكتب أول خاطرة (+15 XP)
+                  {t('dash_write_first', 'اكتب أول خاطرة (+15 XP)')}
                 </button>
               </div>
             ) : (
@@ -278,7 +278,7 @@ export default function Dashboard({ setPage }) {
           >
             <h3 className="font-bold text-sm text-white flex items-center gap-2">
               <Compass size={16} className="text-[#7dd3fc]" />
-              <span>تمارين مقترحة لك اليوم</span>
+              <span>{t('dash_recommended_today', 'تمارين مقترحة لك اليوم')}</span>
             </h3>
 
             <div className="space-y-2.5">
@@ -290,7 +290,7 @@ export default function Dashboard({ setPage }) {
                   <span className="text-2xl">🌬️</span>
                   <div>
                     <h4 className="font-bold text-xs text-white group-hover:text-[#6ee7b7] transition-colors">Breathe-Sync</h4>
-                    <p className="text-[10px] text-[var(--muted)]">تهدئة فورية في 3 دقائق</p>
+                    <p className="text-[10px] text-[var(--muted)]">{t('dash_breathe_desc', 'تهدئة فورية في 3 دقائق')}</p>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-[#6ee7b7]">+20 XP</span>
@@ -303,11 +303,11 @@ export default function Dashboard({ setPage }) {
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🌧️</span>
                   <div>
-                    <h4 className="font-bold text-xs text-white group-hover:text-[#7dd3fc] transition-colors">أصوات الاسترخاء</h4>
-                    <p className="text-[10px] text-[var(--muted)]">أجواء مطر وأمواج طبيعية</p>
+                    <h4 className="font-bold text-xs text-white group-hover:text-[#7dd3fc] transition-colors">{t('dash_sounds_title', 'أصوات الاسترخاء')}</h4>
+                    <p className="text-[10px] text-[var(--muted)]">{t('dash_sounds_desc', 'أجواء مطر وأمواج طبيعية')}</p>
                   </div>
                 </div>
-                <span className="text-xs text-[var(--subtle)]">هدوء تام</span>
+                <span className="text-xs text-[var(--subtle)]">{t('dash_sounds_badge', 'هدوء تام')}</span>
               </button>
 
               <button
@@ -317,8 +317,8 @@ export default function Dashboard({ setPage }) {
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🃏</span>
                   <div>
-                    <h4 className="font-bold text-xs text-white group-hover:text-[#a78bfa] transition-colors">ألعاب الذاكرة</h4>
-                    <p className="text-[10px] text-[var(--muted)]">تشتيت الانتباه وتصفية العقل</p>
+                    <h4 className="font-bold text-xs text-white group-hover:text-[#a78bfa] transition-colors">{t('dash_games_title', 'ألعاب الذاكرة')}</h4>
+                    <p className="text-[10px] text-[var(--muted)]">{t('dash_games_desc', 'تشتيت الانتباه وتصفية العقل')}</p>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-[#a78bfa]">+20 XP</span>
@@ -331,9 +331,9 @@ export default function Dashboard({ setPage }) {
             className="glass p-5 rounded-2xl border border-white/5 text-center space-y-2"
           >
             <span className="text-3xl">💡</span>
-            <p className="text-xs font-bold text-[#6ee7b7]">حكمة اليوم</p>
+            <p className="text-xs font-bold text-[#6ee7b7]">{t('dash_wisdom_title', 'حكمة اليوم')}</p>
             <p className="text-xs text-[var(--subtle)] leading-relaxed italic">
-              "الراحة النفسية ليست غياب الصعوبات، بل هي قدرتك على التعامل معها بهدوء وسلام داخلي."
+              {t('dash_wisdom_quote', '"الراحة النفسية ليست غياب الصعوبات، بل هي قدرتك على التعامل معها بهدوء وسلام داخلي."')}
             </p>
           </motion.div>
         </div>

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import { calculateLevel } from '../lib/gamification'
 
 // SVG tree that evolves through 10 levels
@@ -106,13 +107,20 @@ function TreeSVG({ level }) {
 
 export default function GrowthTree() {
   const { profile } = useAuth()
+  const { t, lang } = useLanguage()
   const xp  = profile?.xp || 0
   const lv  = calculateLevel(xp)
 
+  const titleDisplay = (lang === 'ar' || lang === 'darija') ? (lv.titleAr || lv.title) : lv.title
+
   return (
     <div className="glass p-5 mb-5 flex flex-col items-center">
-      <h2 className="font-bold text-lg mb-1 w-full" style={{ color:'var(--text)' }}>🌳 شجرة النمو ديالك</h2>
-      <p className="text-xs mb-4 w-full" style={{ color:'var(--muted)' }}>كل ما كملتي مهام، شجرتك تكبر</p>
+      <h2 className="font-bold text-lg mb-1 w-full" style={{ color:'var(--text)' }}>
+        {t('tree_title', '🌳 شجرة النمو ديالك')}
+      </h2>
+      <p className="text-xs mb-4 w-full" style={{ color:'var(--muted)' }}>
+        {t('tree_sub', 'كل ما كملتي مهام، شجرتك تكبر')}
+      </p>
 
       <div className="relative flex items-center justify-center w-full" style={{ height:220 }}>
         <TreeSVG level={lv.level} />
@@ -120,8 +128,10 @@ export default function GrowthTree() {
 
       <div className="w-full mt-3 flex items-center justify-center gap-4">
         <div className="text-center">
-          <p className="text-2xl font-black gradient-text">{lv.emoji} {lv.title}</p>
-          <p className="text-xs" style={{ color:'var(--muted)' }}>المرحلة الحالية</p>
+          <p className="text-2xl font-black gradient-text">{lv.emoji} {titleDisplay}</p>
+          <p className="text-xs" style={{ color:'var(--muted)' }}>
+            {t('tree_current_stage', 'المرحلة الحالية')}
+          </p>
         </div>
       </div>
     </div>

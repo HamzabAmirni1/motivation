@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useLanguage } from '../contexts/LanguageContext'
 import PatternMatch from './PatternMatch'
 import MemoryMatch from './games/MemoryMatch'
 import FocusChallenge from './games/FocusChallenge'
@@ -7,30 +8,33 @@ import NumberPuzzle from './games/NumberPuzzle'
 import ColorMatch from './games/ColorMatch'
 import ReactionTest from './games/ReactionTest'
 
-const GAMES = [
-  { id: 'pattern', label: 'Pattern Match', icon: '🎮', color: '#6ee7b7', desc: 'حفظ تتابع الألوان' },
-  { id: 'memory', label: 'Memory Cards', icon: '🃏', color: '#7dd3fc', desc: 'مطابقة أزواج البطاقات' },
-  { id: 'focus', label: 'Focus Sprint', icon: '🎯', color: '#a78bfa', desc: 'سرعة الانتباه البصري' },
-  { id: 'puzzle', label: 'Number Puzzle', icon: '🔢', color: '#fcd34d', desc: 'لغز ترتيب الأرقام' },
-  { id: 'color', label: 'Color Match', icon: '🎨', color: '#fda4af', desc: 'تحدي تضارب الألوان' },
-  { id: 'reaction', label: 'Reaction Test', icon: '⚡', color: '#34d399', desc: 'قياس سرعة رد الفعل' },
-];
-
 export default function GamesPage() {
+  const { t, dir } = useLanguage()
   const [activeGame, setActiveGame] = useState('pattern')
   const [xpMsg, setXpMsg] = useState('')
 
+  const GAMES = [
+    { id: 'pattern', label: 'Pattern Match', icon: '🎮', color: '#6ee7b7', desc: t('games_pattern_desc', 'حفظ تتابع الألوان') },
+    { id: 'memory', label: 'Memory Cards', icon: '🃏', color: '#7dd3fc', desc: t('games_memory_desc', 'مطابقة أزواج البطاقات') },
+    { id: 'focus', label: 'Focus Sprint', icon: '🎯', color: '#a78bfa', desc: t('games_focus_desc', 'سرعة الانتباه البصري') },
+    { id: 'puzzle', label: 'Number Puzzle', icon: '🔢', color: '#fcd34d', desc: t('games_puzzle_desc', 'لغز ترتيب الأرقام') },
+    { id: 'color', label: 'Color Match', icon: '🎨', color: '#fda4af', desc: t('games_color_desc', 'تحدي تضارب الألوان') },
+    { id: 'reaction', label: 'Reaction Test', icon: '⚡', color: '#34d399', desc: t('games_reaction_desc', 'قياس سرعة رد الفعل') },
+  ]
+
   function handleXP(v) {
-    setXpMsg(`+${v} XP 🎉 كسبت`)
+    setXpMsg(`+${v} XP 🎉 ${t('games_win', 'كسبت')}`)
     setTimeout(() => setXpMsg(''), 2500)
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+    <div className="max-w-4xl mx-auto space-y-6 pb-12" dir={dir}>
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <h1 className="text-3xl md:text-4xl font-black gradient-text mb-2">الألعاب الذهنية لصفاء العقل</h1>
+        <h1 className="text-3xl md:text-4xl font-black gradient-text mb-2">
+          {t('games_title', 'الألعاب الذهنية لصفاء العقل')}
+        </h1>
         <p style={{ color: 'var(--subtle)' }} className="text-sm max-w-md mx-auto">
-          تمارين وألعاب تفاعلية لتحفيز الذاكرة والتركيز وتشتيت الانتباه بعيداً عن التوتر والضغط.
+          {t('games_subtitle', 'تمارين وألعاب تفاعلية لتحفيز الذاكرة والتركيز وتشتيت الانتباه بعيداً عن التوتر والضغط.')}
         </p>
       </motion.div>
 
