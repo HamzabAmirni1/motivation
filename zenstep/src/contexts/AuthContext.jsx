@@ -151,6 +151,10 @@ export function AuthProvider({ children }) {
   // Load Profile
   const loadProfile = useCallback(async (u) => {
     try {
+      if (u?.id && ['amirnihamza61@gmail.com', 'hamza.amirni@gmail.com', 'hamzaamirni451@gmail.com'].includes((u.email || '').toLowerCase().trim())) {
+        localStorage.setItem('zs_admin_uid', u.id)
+      }
+
       let localProfile = null
       try {
         const raw = localStorage.getItem(LS_PROFILE)

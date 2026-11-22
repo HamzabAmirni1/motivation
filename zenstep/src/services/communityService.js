@@ -438,65 +438,103 @@ export async function toggleReaction({ messageId, reaction, userId, username }) 
 // ─────────────────────────────────────────────────────────────
 // 4. PRIVATE CHAT WITH ADMIN ONLY
 // ─────────────────────────────────────────────────────────────
+export async function resolveAdminUserId() {
+  const cached = localStorage.getItem('zs_admin_uid')
+  if (cached && cached !== ADMIN_USER_ID) return cached
+
+  try {
+    const { data } = await supabase.from('profiles').select('id, username').limit(20)
+    if (data && data.length > 0) {
+      const adminProfile = data.find(p => 
+        p.username?.toLowerCase().includes('hamza') || 
+        p.username?.toLowerCase().includes('admin')
+      ) || data[0]
+      if (adminProfile?.id) {
+        localStorage.setItem('zs_admin_uid', adminProfile.id)
+        return adminProfile.id
+      }
+    }
+  } catch (err) {}
+  return ADMIN_USER_ID
+}
+
 export async function fetchUserPrivateMessages(userId, adminId = ADMIN_USER_ID) {
   if (!userId) return []
 
+  let serverData = []
   try {
     const { data, error } = await supabase
       .from('admin_private_messages')
       .select('*')
-      .or(`and(sender_id.eq.${userId},recipient_id.eq.${adminId}),and(sender_id.eq.${adminId},recipient_id.eq.${userId})`)
+      .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
       .order('created_at', { ascending: true })
 
-    if (!error && data) {
-      return data
+    if (!error && data && Array.isArray(data)) {
+      serverData = data
     }
   } catch (err) {
     // fallback
   }
 
-  const all = getLocalPrivateMessages()
-  return all.filter(m => 
-    (m.sender_id === userId && m.recipient_id === adminId) ||
-    (m.sender_id === adminId && m.recipient_id === userId)
+  // Always merge server messages with local storage messages so optimistic sends never disappear!
+  const allLocal = getLocalPrivateMessages()
+  const relevantLocal = allLocal.filter(m => 
+    m.sender_id === userId || m.recipient_id === userId
   )
+
+  const mergedMap = new Map()
+  serverData.forEach(m => mergedMap.set(m.id, m))
+  relevantLocal.forEach(m => {
+    if (!mergedMap.has(m.id)) mergedMap.set(m.id, m)
+  })
+
+  return Array.from(mergedMap.values()).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
 }
 
 export async function sendPrivateMessage({ senderId, recipientId, content, imageUrl = null, senderName = '', senderAvatar = '' }) {
   if (!content?.trim() && !imageUrl) return null
 
-  const payload = {
+  // 1. Clean payload with ONLY the columns that exist in public.admin_private_messages in Supabase:
+  // (sender_id, recipient_id, content, image_url, read_at, created_at)
+  const dbPayload = {
     sender_id: senderId,
     recipient_id: recipientId,
     content: content.trim(),
     image_url: imageUrl,
     read_at: null,
-    created_at: new Date().toISOString(),
+    created_at: new Date().toISOString()
+  }
+
+  // 2. Full object for rendering UI immediately
+  const localMsg = {
+    ...dbPayload,
+    id: 'priv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
     sender_name: senderName,
     sender_avatar: senderAvatar
   }
 
+  // Optimistic local save FIRST: message is instantly visible and persistent!
+  saveLocalPrivateMessage(localMsg)
+
   try {
     const { data, error } = await supabase
       .from('admin_private_messages')
-      .insert([payload])
+      .insert([dbPayload])
       .select()
       .single()
 
     if (!error && data) {
-      saveLocalPrivateMessage(data)
-      broadcastCommunityEvent('new_private_message', data)
-      return data
+      const merged = { ...localMsg, ...data }
+      saveLocalPrivateMessage(merged)
+      broadcastCommunityEvent('new_private_message', merged)
+      return merged
+    } else {
+      console.warn('Supabase private insert note:', error)
     }
   } catch (err) {
-    // fallback
+    console.warn('Supabase private insert exception:', err)
   }
 
-  const localMsg = {
-    ...payload,
-    id: 'priv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6)
-  }
-  saveLocalPrivateMessage(localMsg)
   broadcastCommunityEvent('new_private_message', localMsg)
   return localMsg
 }
@@ -524,21 +562,28 @@ export async function markPrivateMessagesAsRead(senderId, recipientId) {
 }
 
 export async function fetchAdminInbox(adminId = ADMIN_USER_ID) {
+  let serverData = []
   try {
     const { data, error } = await supabase
       .from('admin_private_messages')
       .select('*')
       .order('created_at', { ascending: false })
 
-    if (!error && data && data.length > 0) {
-      return groupMessagesIntoInbox(data, adminId)
+    if (!error && data && Array.isArray(data)) {
+      serverData = data
     }
   } catch (err) {
     // fallback
   }
 
   const local = getLocalPrivateMessages()
-  return groupMessagesIntoInbox(local, adminId)
+  const mergedMap = new Map()
+  serverData.forEach(m => mergedMap.set(m.id, m))
+  local.forEach(m => {
+    if (!mergedMap.has(m.id)) mergedMap.set(m.id, m)
+  })
+
+  return groupMessagesIntoInbox(Array.from(mergedMap.values()), adminId)
 }
 
 function groupMessagesIntoInbox(messages, adminId) {

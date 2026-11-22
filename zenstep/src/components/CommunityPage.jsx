@@ -24,6 +24,7 @@ import {
   reportMessage,
   fetchUserPrivateMessages,
   sendPrivateMessage,
+  resolveAdminUserId,
   markPrivateMessagesAsRead,
   fetchAdminInbox,
   fetchCommunityReports,
@@ -238,7 +239,16 @@ export default function CommunityPage() {
       } else if (event.type === 'reaction_updated') {
         setReactionsMap(prev => ({ ...prev, [event.payload.messageId]: event.payload.reactions }))
       } else if (event.type === 'new_private_message') {
-        loadPrivateChat()
+        if (event.payload) {
+          setPrivateMessages(prev => {
+            if (prev.some(m => m.id === event.payload.id)) return prev
+            if (event.payload.sender_id === user?.id || event.payload.recipient_id === user?.id) {
+              return [...prev, event.payload]
+            }
+            return prev
+          })
+        }
+        if (isAdmin) loadPrivateChat()
       } else if (event.type === 'moderation_changed') {
         setMessages(prev => prev.map(m => m.id === event.payload.messageId ? { ...m, moderation_status: event.payload.status } : m))
       }
@@ -377,7 +387,7 @@ export default function CommunityPage() {
     e?.preventDefault()
     if (!privateInput.trim() && !privateImagePreview) return
 
-    const recipientId = isAdmin ? selectedUserThread?.userId : ADMIN_USER_ID
+    const recipientId = isAdmin ? selectedUserThread?.userId : (await resolveAdminUserId())
     if (!recipientId) return
 
     const content = privateInput
@@ -386,7 +396,7 @@ export default function CommunityPage() {
     setPrivateImagePreview(null)
 
     const sent = await sendPrivateMessage({
-      senderId: user?.id,
+      senderId: user?.id || 'anon_user',
       recipientId,
       content,
       imageUrl: img,
@@ -394,7 +404,12 @@ export default function CommunityPage() {
       senderAvatar: profile?.avatar_url || '🌱'
     })
 
-    setPrivateMessages(prev => [...prev, sent])
+    if (sent) {
+      setPrivateMessages(prev => {
+        if (prev.some(m => m.id === sent.id)) return prev
+        return [...prev, sent]
+      })
+    }
     if (isAdmin) loadPrivateChat()
   }
 
