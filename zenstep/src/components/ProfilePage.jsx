@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, Shield, Bell, Volume2, Globe, Key, Download, Trash2, Trophy, Flame, Sparkles, CheckCircle2 } from 'lucide-react'
+import { User, Shield, Bell, Volume2, Globe, Key, Download, Trash2, Trophy, Flame, Sparkles, CheckCircle2, Camera, Upload } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { calculateLevel, ACHIEVEMENTS } from '../lib/gamification'
@@ -13,12 +13,52 @@ function isImageUrl(url) {
   return typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/') || url.startsWith('data:image'));
 }
 
+function resizeImageToDataUrl(file, maxSize = 256) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        let width = img.width
+        let height = img.height
+
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round((height * maxSize) / width)
+            width = maxSize
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round((width * maxSize) / height)
+            height = maxSize
+          }
+        }
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+        resolve(dataUrl)
+      }
+      img.onerror = reject
+      img.src = e.target.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 export default function ProfilePage() {
   const { user, profile, saveProfile, signOut } = useAuth()
   const { lang, setLang, t, languages } = useLanguage()
   const xp = profile?.xp || 0
   const lv = calculateLevel(xp)
   const streak = profile?.streak_count || 0
+
+  const fileInputRef = useRef(null)
+  const [uploading, setUploading] = useState(false)
 
   const getCleanInitialAvatar = () => {
     const av = profile?.avatar_url
@@ -47,6 +87,32 @@ export default function ProfilePage() {
       return JSON.parse(localStorage.getItem('zs_achievements') || '[]')
     } catch { return [] }
   })()
+
+  const handleImageFileSelect = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      alert('يرجى اختيار ملف صورة صالح')
+      return
+    }
+
+    try {
+      setUploading(true)
+      const dataUrl = await resizeImageToDataUrl(file, 256)
+      setSelectedAvatar(dataUrl)
+      saveProfile({
+        ...profile,
+        avatar_url: dataUrl
+      })
+      setSavedMsg(t('common_saved', 'تم تحديث الصورة بنجاح ✓'))
+      setTimeout(() => setSavedMsg(''), 2500)
+    } catch (err) {
+      console.warn('Image processing failed:', err)
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   const handleSaveProfile = () => {
     setLang(language)
@@ -113,10 +179,15 @@ export default function ProfilePage() {
       >
         <div className="flex items-center gap-5">
           <div
-            className="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl shadow-2xl relative overflow-hidden shrink-0 select-none"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl shadow-2xl relative overflow-hidden shrink-0 select-none cursor-pointer group"
             style={{ background: 'linear-gradient(135deg, #6ee7b7, #a78bfa)', color: '#0d1117' }}
+            title={t('profile_upload_gallery', 'اختر صورة من المعرض 📸')}
           >
-            {renderAvatarContent(profile, lv.emoji)}
+            {renderAvatarContent({ ...profile, avatar_url: selectedAvatar }, lv.emoji)}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold">
+              <Camera size={22} className="text-white drop-shadow-md" />
+            </div>
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -201,19 +272,50 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[var(--subtle)] mb-2">اختر الأفاتار الرمزي</label>
-            <div className="flex flex-wrap gap-2 items-center">
-              {profile?.avatar_url && isImageUrl(profile.avatar_url) && (
+            <label className="block text-xs font-bold text-[var(--subtle)] mb-2">{t('profile_avatar', 'الأفاتار والصورة الشخصية')}</label>
+            
+            {/* Hidden Gallery Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageFileSelect}
+            />
+
+            {/* Gallery Upload Button + Remove Photo */}
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold border border-[#6ee7b7]/30 bg-[#6ee7b7]/15 hover:bg-[#6ee7b7]/25 text-[#6ee7b7] flex items-center gap-2 transition-all shadow-sm"
+              >
+                <Camera size={16} />
+                <span>{uploading ? t('profile_uploading', 'كنجهزو الصورة...') : t('profile_upload_gallery', 'اختر صورة من المعرض (Galerie) 📸')}</span>
+              </button>
+
+              {isImageUrl(selectedAvatar) && (
                 <button
                   type="button"
-                  onClick={() => setSelectedAvatar(profile.avatar_url)}
-                  className={`w-11 h-11 rounded-xl overflow-hidden border transition-all ${
-                    selectedAvatar === profile.avatar_url ? 'ring-2 ring-[#6ee7b7] border-[#6ee7b7]' : 'border-white/5 opacity-80'
-                  }`}
-                  title="صورة حساب Google"
+                  onClick={() => setSelectedAvatar('🌱')}
+                  className="px-3 py-2.5 rounded-xl text-xs text-red-400 glass hover:bg-red-500/10 border-red-500/20 flex items-center gap-1.5 transition-colors"
                 >
-                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  <Trash2 size={13} />
+                  <span>{t('profile_remove_photo', 'مسح الصورة')}</span>
                 </button>
+              )}
+            </div>
+
+            {/* Avatar Presets & Custom Image Preview */}
+            <div className="flex flex-wrap gap-2 items-center">
+              {isImageUrl(selectedAvatar) && (
+                <div className="relative group">
+                  <div className="w-11 h-11 rounded-xl overflow-hidden ring-2 ring-[#6ee7b7] border-2 border-[#6ee7b7] shadow-lg">
+                    <img src={selectedAvatar} alt="Custom Avatar" className="w-full h-full object-cover" />
+                  </div>
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#6ee7b7] text-black rounded-full text-[9px] font-bold flex items-center justify-center">✓</span>
+                </div>
               )}
               {AVATAR_PRESETS.map(av => (
                 <button

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useLanguage } from '../contexts/LanguageContext'
 import BreathSync from './BreathSync'
 import CBTFlip from './CBTFlip'
 import Grounding541 from './Grounding541'
@@ -7,30 +8,31 @@ import FocusMode from './tools/FocusMode'
 import StressRelief from './tools/StressRelief'
 import SleepRoutine from './tools/SleepRoutine'
 
-const TOOLS = [
-  { id: 'breath',    label: 'Breathe-Sync', icon: '🌬️', desc: 'تمارين تنفس عميق مهدئة', color: '#6ee7b7' },
-  { id: 'grounding', label: '5-4-3-2-1',    icon: '🌍', desc: 'تمرين التأريض الحسي في لحظات القلق', color: '#7dd3fc' },
-  { id: 'cbt',       label: 'قلب الأفكار',   icon: '🧠', desc: 'إعادة صياغة الأفكار السلبية بواقعية', color: '#a78bfa' },
-  { id: 'focus',     label: 'Focus Mode',   icon: '🎯', desc: 'جلسات تركيز بومودورو مع أصوات خلفية', color: '#fcd34d' },
-  { id: 'stress',    label: 'تفريغ التوتر', icon: '💆', desc: 'استرخاء العضلات التدريجي (PMR)', color: '#fda4af' },
-  { id: 'sleep',     label: 'روتين النوم',  icon: '🌙', desc: 'طقوس الاستعداد لنوم هادئ ومريح', color: '#c084fc' },
-];
-
 export default function ToolsPage() {
+  const { t } = useLanguage()
   const [open, setOpen] = useState('breath')
   const [xpMsg, setXpMsg] = useState('')
 
+  const tools = [
+    { id: 'breath',    label: t('tool_breath_title', 'Breathe-Sync'), icon: '🌬️', desc: t('tool_breath_desc'), color: '#6ee7b7' },
+    { id: 'grounding', label: t('tool_grounding_title', '5-4-3-2-1'), icon: '🌍', desc: t('tool_grounding_desc'), color: '#7dd3fc' },
+    { id: 'cbt',       label: t('tool_cbt_title', 'CBT Flip'),        icon: '🧠', desc: t('tool_cbt_desc'), color: '#a78bfa' },
+    { id: 'focus',     label: t('tool_focus_title', 'Focus Mode'),    icon: '🎯', desc: t('tool_focus_desc'), color: '#fcd34d' },
+    { id: 'stress',    label: t('tool_stress_title', 'PMR'),          icon: '💆', desc: t('tool_stress_desc'), color: '#fda4af' },
+    { id: 'sleep',     label: t('tool_sleep_title', 'Sleep Routine'), icon: '🌙', desc: t('tool_sleep_desc'), color: '#c084fc' },
+  ]
+
   function handleXP(v) {
-    setXpMsg(`+${v} XP 🌟 كسبت`)
+    setXpMsg(`+${v} XP 🌟`)
     setTimeout(() => setXpMsg(''), 2500)
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <h1 className="text-3xl md:text-4xl font-black gradient-text mb-2">أدوات العافية النفسية</h1>
+        <h1 className="text-3xl md:text-4xl font-black gradient-text mb-2">{t('tools_title', 'أدوات العافية النفسية')}</h1>
         <p style={{ color: 'var(--subtle)' }} className="text-sm max-w-md mx-auto">
-          تمارين عملية وتقنيات مبنية على علم النفس لتنظيم الجهاز العصبي وصفاء الذهن.
+          {t('tools_subtitle', 'تمارين عملية وتقنيات مبنية على علم النفس لتنظيم الجهاز العصبي وصفاء الذهن.')}
         </p>
       </motion.div>
 
@@ -50,27 +52,27 @@ export default function ToolsPage() {
 
       {/* Tools Grid Selector */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2.5">
-        {TOOLS.map((t) => {
-          const isActive = open === t.id
+        {tools.map((tItem) => {
+          const isActive = open === tItem.id
           return (
             <motion.button
-              key={t.id}
+              key={tItem.id}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => setOpen(t.id)}
+              onClick={() => setOpen(tItem.id)}
               className="p-3.5 rounded-2xl text-center transition-all flex flex-col items-center justify-center"
               style={{
-                border: isActive ? `1.5px solid ${t.color}` : '1px solid rgba(255,255,255,0.06)',
-                background: isActive ? `${t.color}15` : 'rgba(22,28,45,0.7)',
-                boxShadow: isActive ? `0 0 20px ${t.color}22` : 'none'
+                border: isActive ? `1.5px solid ${tItem.color}` : '1px solid rgba(255,255,255,0.06)',
+                background: isActive ? `${tItem.color}15` : 'rgba(22,28,45,0.7)',
+                boxShadow: isActive ? `0 0 20px ${tItem.color}22` : 'none'
               }}
             >
-              <span className="text-2xl mb-1.5 block">{t.icon}</span>
-              <p className="text-xs font-bold block" style={{ color: isActive ? t.color : 'var(--text)' }}>
-                {t.label}
+              <span className="text-2xl mb-1.5 block">{tItem.icon}</span>
+              <p className="text-xs font-bold block" style={{ color: isActive ? tItem.color : 'var(--text)' }}>
+                {tItem.label}
               </p>
               <p className="text-[10px] text-[var(--muted)] truncate max-w-full mt-0.5 hidden md:block">
-                {t.desc}
+                {tItem.desc}
               </p>
             </motion.button>
           )
