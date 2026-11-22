@@ -1,0 +1,43 @@
+name: Supabase Database Keep-Alive (Traffic Generator)
+
+on:
+  schedule:
+    # Runs every 6 hours to generate regular traffic so Supabase Free Tier never pauses ("matb9ach tfa")
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Allows manual trigger anytime from GitHub Actions tab
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database & REST API
+        env:
+          SUPABASE_URL: "https://tqmpphasiqzacuzrvtny.supabase.co"
+          SUPABASE_KEY: "sb_publishable_qv4PgnVzgCHC_z0HN8ATJQ_Lvg67qE7"
+        run: |
+          echo "Starting Supabase Keep-Alive Ping at $(date)"
+          
+          # 1. Ping profiles table
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X GET \
+            "$SUPABASE_URL/rest/v1/profiles?select=id&limit=1" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          echo "Profiles Table Ping Response Code: $HTTP_CODE"
+          
+          # 2. Ping heartbeat table with timestamp write/upsert
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          HEARTBEAT_DATA="{\"id\":\"github_action_cron\",\"pinged_at\":\"$TIMESTAMP\",\"source\":\"github_actions\"}"
+          
+          HB_RES=$(curl -s -w "\n%{http_code}" -X POST \
+            "$SUPABASE_URL/rest/v1/heartbeat" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=merge-duplicates" \
+            -d "$HEARTBEAT_DATA")
+          
+          HB_CODE=$(echo "$HB_RES" | tail -n1)
+          echo "Heartbeat Table Write Code: $HB_CODE"
+          echo "Keep-alive ping completed successfully!"

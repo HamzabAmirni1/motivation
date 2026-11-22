@@ -1,126 +1,258 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Play, Pause, RotateCcw, Volume2, Sparkles, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
-const PHASES = [
-  { label:'شهيق',  duration:4000, scale:1.35 },
-  { label:'احتفظ', duration:4000, scale:1.35 },
-  { label:'زفير',  duration:4000, scale:1.0  },
-  { label:'استرح', duration:2000, scale:1.0  },
-]
+const PATTERNS = [
+  {
+    id: 'box',
+    name: 'تنفس المربع (4-4-4-4)',
+    desc: 'للتركيز وتهدئة القلق الفوري',
+    phases: [
+      { label: 'شهيق', duration: 4, scale: 1.35, color: '#6ee7b7' },
+      { label: 'احتفظ', duration: 4, scale: 1.35, color: '#7dd3fc' },
+      { label: 'زفير', duration: 4, scale: 1.0, color: '#a78bfa' },
+      { label: 'استرح', duration: 4, scale: 1.0, color: '#94a3b8' },
+    ]
+  },
+  {
+    id: 'relax',
+    name: 'استرخاء عميق (4-7-8)',
+    desc: 'لتفريغ التوتر والمساعدة على النوم',
+    phases: [
+      { label: 'شهيق', duration: 4, scale: 1.35, color: '#6ee7b7' },
+      { label: 'احتفظ', duration: 7, scale: 1.35, color: '#fcd34d' },
+      { label: 'زفير', duration: 8, scale: 1.0, color: '#a78bfa' },
+    ]
+  },
+  {
+    id: 'calm',
+    name: 'توازن وهدوء (5-5)',
+    desc: 'لتنظيم ضربات القلب والتوازن النفسي',
+    phases: [
+      { label: 'شهيق', duration: 5, scale: 1.35, color: '#6ee7b7' },
+      { label: 'زفير', duration: 5, scale: 1.0, color: '#7dd3fc' },
+    ]
+  }
+];
+
+function playBellSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext
+    if (!AudioCtx) return
+    const ctx = new AudioCtx()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(528, ctx.currentTime) // 528Hz love/miracle frequency
+    gain.gain.setValueAtTime(0.15, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 1.2)
+  } catch (e) {}
+}
 
 export default function BreathSync({ onXPEarned }) {
-  const { addXP } = useAuth()
-  const [running,  setRunning]  = useState(false)
-  const [phase,    setPhase]    = useState(0)
-  const [seconds,  setSeconds]  = useState(PHASES[0].duration / 1000)
-  const [rounds,   setRounds]   = useState(0)
-  const [done,     setDone]     = useState(false)
-  const timerRef   = useRef(null)
-  const phaseRef   = useRef(0)
+  const { addXP, recordExerciseSession } = useAuth()
+  const [activePatternIndex, setActivePatternIndex] = useState(0)
+  const [running, setRunning] = useState(false)
+  const [phaseIndex, setPhaseIndex] = useState(0)
+  const [seconds, setSeconds] = useState(PATTERNS[0].phases[0].duration)
+  const [rounds, setRounds] = useState(0)
+  const [done, setDone] = useState(false)
+  const [soundEnabled, setSoundEnabled] = useState(true)
 
-  function start() { setRunning(true); setPhase(0); phaseRef.current = 0; setSeconds(PHASES[0].duration / 1000); setDone(false) }
+  const timerRef = useRef(null)
+  const currentPattern = PATTERNS[activePatternIndex]
+  const currentPhase = currentPattern.phases[phaseIndex]
 
-  function stop() {
+  function start() {
+    setRunning(true)
+    setPhaseIndex(0)
+    setSeconds(currentPattern.phases[0].duration)
+    setDone(false)
+    if (soundEnabled) playBellSound()
+  }
+
+  function pause() {
     setRunning(false)
-    clearTimeout(timerRef.current)
+    if (timerRef.current) clearInterval(timerRef.current)
+  }
+
+  function reset() {
+    setRunning(false)
+    if (timerRef.current) clearInterval(timerRef.current)
+    setPhaseIndex(0)
+    setSeconds(currentPattern.phases[0].duration)
+    setRounds(0)
+    setDone(false)
   }
 
   useEffect(() => {
     if (!running) return
-    const tick = () => {
-      const p = phaseRef.current
-      let remaining = PHASES[p].duration / 1000
-      const interval = setInterval(() => {
-        remaining -= 1
-        setSeconds(remaining)
-        if (remaining <= 0) {
-          clearInterval(interval)
-          const next = (p + 1) % PHASES.length
-          phaseRef.current = next
-          setPhase(next)
-          setSeconds(PHASES[next].duration / 1000)
-          if (next === 0) {
+
+    timerRef.current = setInterval(() => {
+      setSeconds(prevSec => {
+        if (prevSec <= 1) {
+          // Switch phase
+          const nextP = (phaseIndex + 1) % currentPattern.phases.length
+          setPhaseIndex(nextP)
+          if (soundEnabled) playBellSound()
+
+          if (nextP === 0) {
             setRounds(r => {
-              const nr = r + 1
-              if (nr >= 3) {
+              const newR = r + 1
+              if (newR >= 3) {
                 setRunning(false)
                 setDone(true)
-                addXP(15)
-                onXPEarned?.(15)
+                addXP(20, 'breathing')
+                recordExerciseSession('breathing', 120, 20, `جلسة ${currentPattern.name} مكتملة`)
+                onXPEarned?.(20)
               }
-              return nr
+              return newR
             })
           }
-          tick()
+          return currentPattern.phases[nextP].duration
         }
-      }, 1000)
-      timerRef.current = interval
-    }
-    tick()
-    return () => clearInterval(timerRef.current)
-  }, [running])
+        return prevSec - 1
+      })
+    }, 1000)
 
-  const current = PHASES[phase]
-  const colors  = ['#6ee7b7','#a78bfa','#7dd3fc','#94a3b8']
+    return () => clearInterval(timerRef.current)
+  }, [running, phaseIndex, currentPattern, soundEnabled, addXP, onXPEarned, recordExerciseSession])
+
+  const handlePatternChange = (idx) => {
+    reset()
+    setActivePatternIndex(idx)
+    setSeconds(PATTERNS[idx].phases[0].duration)
+  }
 
   return (
-    <div className="glass p-6 flex flex-col items-center">
-      <h3 className="font-bold text-lg mb-1" style={{ color:'var(--text)' }}>💨 Breathe-Sync</h3>
-      <p className="text-xs mb-6" style={{ color:'var(--muted)' }}>تبع الدائرة: تكبر = شهيق، تصغر = زفير</p>
+    <div className="glass p-6 md:p-8 rounded-[2rem] border border-white/5 flex flex-col items-center space-y-6">
+      <div className="text-center">
+        <h3 className="font-bold text-xl text-white mb-1">🌬️ Breathe-Sync (مزامنة التنفس)</h3>
+        <p className="text-xs text-[var(--muted)]">اتبع الدائرة المتحركة: اتساع = شهيق، انكماش = زفير</p>
+      </div>
 
-      {/* Breathing circle */}
-      <div className="relative flex items-center justify-center mb-6" style={{ width:180, height:180 }}>
-        {/* Outer glow ring */}
-        <motion.div className="absolute rounded-full"
-          style={{ width:180, height:180, background:`radial-gradient(circle, ${colors[phase]}22, transparent)` }}
-          animate={{ scale: current.scale, opacity:[0.4,0.8,0.4] }}
-          transition={{ duration: current.duration/1000, ease:'easeInOut', repeat:Infinity }}
+      {/* Pattern Selector */}
+      <div className="flex gap-2 p-1.5 rounded-2xl bg-black/20 border border-white/5 max-w-full overflow-x-auto">
+        {PATTERNS.map((p, idx) => (
+          <button
+            key={p.id}
+            onClick={() => handlePatternChange(idx)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+              activePatternIndex === idx
+                ? 'bg-[#6ee7b7] text-[#0a0f1a] shadow-md'
+                : 'text-[var(--subtle)] hover:text-white'
+            }`}
+          >
+            {p.name}
+          </button>
+        ))}
+      </div>
+
+      {/* Breathing Circle */}
+      <div className="relative flex items-center justify-center my-4" style={{ width: 220, height: 220 }}>
+        {/* Glow halo */}
+        <motion.div
+          className="absolute rounded-full"
+          style={{
+            width: 220,
+            height: 220,
+            background: `radial-gradient(circle, ${currentPhase.color}22, transparent)`
+          }}
+          animate={{
+            scale: currentPhase.scale,
+            opacity: [0.3, 0.7, 0.3]
+          }}
+          transition={{
+            duration: currentPhase.duration,
+            ease: 'easeInOut'
+          }}
         />
-        {/* Main circle */}
-        <motion.div className="absolute rounded-full flex flex-col items-center justify-center"
-          style={{ width:120, height:120, background:`radial-gradient(circle at 35% 35%, ${colors[phase]}, ${colors[phase]}88)`, boxShadow:`0 0 30px ${colors[phase]}55` }}
-          animate={{ scale: current.scale }}
-          transition={{ duration: current.duration/1000, ease:'easeInOut' }}>
-          <p className="text-2xl font-black" style={{ color:'#0a0f1a' }}>{seconds}</p>
-          <p className="text-xs font-bold" style={{ color:'#0a0f1a' }}>{current.label}</p>
+
+        {/* Core animated circle */}
+        <motion.div
+          className="absolute rounded-full flex flex-col items-center justify-center shadow-2xl"
+          style={{
+            width: 140,
+            height: 140,
+            background: `radial-gradient(circle at 35% 35%, ${currentPhase.color}, ${currentPhase.color}88)`,
+            boxShadow: `0 0 40px ${currentPhase.color}55`
+          }}
+          animate={{ scale: currentPhase.scale }}
+          transition={{ duration: currentPhase.duration, ease: 'easeInOut' }}
+        >
+          <p className="text-3xl font-black text-[#0a0f1a]">{seconds}</p>
+          <p className="text-xs font-bold text-[#0a0f1a] tracking-wide mt-0.5">{currentPhase.label}</p>
         </motion.div>
       </div>
 
-      <div className="flex gap-2 mb-5">
-        {PHASES.map((p, i) => (
+      {/* Phase indicators */}
+      <div className="flex gap-4">
+        {currentPattern.phases.map((p, i) => (
           <div key={i} className="flex flex-col items-center gap-1">
-            <div className="w-1.5 h-1.5 rounded-full transition-all duration-300"
-              style={{ background: i === phase && running ? colors[phase] : 'rgba(255,255,255,0.15)' }} />
-            <span className="text-xs" style={{ color: i === phase ? colors[phase] : 'var(--muted)' }}>{p.label}</span>
+            <div
+              className="w-2 h-2 rounded-full transition-all duration-300"
+              style={{
+                background: i === phaseIndex && running ? p.color : 'rgba(255,255,255,0.15)',
+                transform: i === phaseIndex && running ? 'scale(1.4)' : 'scale(1)'
+              }}
+            />
+            <span
+              className="text-xs font-semibold"
+              style={{ color: i === phaseIndex && running ? p.color : 'var(--muted)' }}
+            >
+              {p.label} ({p.duration}s)
+            </span>
           </div>
         ))}
       </div>
 
-      <AnimatePresence>
-        {done && (
-          <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}
-            className="mb-4 text-center p-3 rounded-xl w-full"
-            style={{ background:'rgba(110,231,183,0.1)', border:'1px solid rgba(110,231,183,0.2)' }}>
-            <p className="font-bold" style={{ color:'#6ee7b7' }}>مزيان عليك! 🎉 +15 XP</p>
-            <p className="text-xs" style={{ color:'var(--muted)' }}>كملتي 3 دورات تنفس — راك أهدى الآن</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="flex gap-3 w-full">
-        {!running ? (
-          <motion.button whileTap={{ scale:0.97 }} onClick={start} className="btn-zen flex-1">
-            {done ? '🔄 مرة أخرى' : '▶ بدا التنفس'}
-          </motion.button>
-        ) : (
-          <motion.button whileTap={{ scale:0.97 }} onClick={stop}
-            className="btn-ghost flex-1">
-            ⏹ توقف
-          </motion.button>
-        )}
+      {/* Sound toggle & Rounds count */}
+      <div className="flex items-center justify-between w-full max-w-xs text-xs text-[var(--muted)]">
+        <button
+          onClick={() => setSoundEnabled(s => !s)}
+          className="flex items-center gap-1.5 hover:text-white transition-colors"
+        >
+          <Volume2 size={14} className={soundEnabled ? 'text-[#6ee7b7]' : 'text-[var(--muted)]'} />
+          <span>نغمة الإشعار: {soundEnabled ? 'مفعلة' : 'صامت'}</span>
+        </button>
+        <span>{rounds}/3 دورات مكتملة</span>
       </div>
-      {rounds > 0 && <p className="text-xs mt-2" style={{ color:'var(--muted)' }}>{rounds}/3 دورات</p>}
+
+      {done && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="p-4 rounded-2xl text-center w-full bg-[#6ee7b7]/10 border border-[#6ee7b7]/30"
+        >
+          <CheckCircle2 size={24} className="mx-auto mb-1 text-[#6ee7b7]" />
+          <h4 className="font-bold text-[#6ee7b7] text-sm">ممتاز جداً! أكملت 3 دورات تنفس بنجاح</h4>
+          <p className="text-xs text-[var(--muted)] mt-0.5">كسبت +20 XP وجسمك الآن في حالة هدوء واسترخاء 🌱</p>
+        </motion.div>
+      )}
+
+      {/* Control Buttons */}
+      <div className="flex gap-3 w-full max-w-xs">
+        {!running ? (
+          <button onClick={start} className="btn-zen flex-1 py-3 font-bold flex items-center justify-center gap-2">
+            <Play size={16} />
+            <span>{done ? 'تكرار الجلسة' : 'بدء التنفس'}</span>
+          </button>
+        ) : (
+          <button onClick={pause} className="btn-ghost flex-1 py-3 font-bold flex items-center justify-center gap-2">
+            <Pause size={16} />
+            <span>إيقاف مؤقت</span>
+          </button>
+        )}
+
+        <button onClick={reset} className="btn-ghost px-4 py-3" title="إعادة ضبط">
+          <RotateCcw size={16} />
+        </button>
+      </div>
     </div>
   )
 }
