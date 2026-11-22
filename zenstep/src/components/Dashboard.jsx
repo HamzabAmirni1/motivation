@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Sparkles, Flame, Trophy, Smile, BookOpen, Target, ArrowRight, Heart, Wind, Compass } from 'lucide-react'
+import { Sparkles, Flame, Trophy, Smile, BookOpen, Target, ArrowRight, Heart, Wind, Compass, Activity, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import XPBar from './XPBar'
 import DailyQuest from './DailyQuest'
@@ -14,14 +14,33 @@ export default function Dashboard({ setPage }) {
   const journalEntries = getJournalEntries()
   const completedQuests = getCompletedQuests()
 
+  const [moodRange, setMoodRange] = useState(7) // 7 or 30 days
+
   const xp = profile?.xp || 0
   const lv = calculateLevel(xp)
   const streak = profile?.streak_count || 0
   const hour = new Date().getHours()
   const greet = hour < 12 ? 'صباح الخير والسكينة' : hour < 18 ? 'مساء النور والراحة' : 'ليلة هادئة ومباركة'
 
-  // Last 7 days mood trend for chart
-  const recentMoods = useMemo(() => moodLogs.slice(0, 7).reverse(), [moodLogs])
+  // User stats from storage
+  const stats = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('zs_stats') || '{}')
+    } catch { return {} }
+  }, [])
+
+  const unlockedAchievements = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('zs_achievements') || '[]')
+    } catch { return [] }
+  }, [])
+
+  // Mood trend for chart
+  const recentMoods = useMemo(() => {
+    return moodLogs.slice(0, moodRange).reverse()
+  }, [moodLogs, moodRange])
+
+  const totalExercises = (stats.completedExercises || 0) + completedQuests.length
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
@@ -43,8 +62,8 @@ export default function Dashboard({ setPage }) {
           </p>
         </div>
 
-        {/* Quick Quick Actions */}
-        <div className="flex gap-2 flex-wrap justify-center">
+        {/* Quick Actions */}
+        <div className="flex gap-2.5 flex-wrap justify-center">
           <button
             onClick={() => setPage('mood')}
             className="btn-zen px-5 py-2.5 text-xs font-bold flex items-center gap-1.5 shadow-lg"
@@ -67,6 +86,49 @@ export default function Dashboard({ setPage }) {
         <XPBar />
       </motion.div>
 
+      {/* Quick Summary KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+        <div className="glass p-4 rounded-2xl border border-white/5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#6ee7b7]/15 text-[#6ee7b7] flex items-center justify-center shrink-0">
+            <Activity size={20} />
+          </div>
+          <div>
+            <p className="text-xl font-black text-white">{totalExercises}</p>
+            <p className="text-[10px] text-[var(--muted)]">تمارين ونشاطات منجزة</p>
+          </div>
+        </div>
+
+        <div className="glass p-4 rounded-2xl border border-white/5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#fcd34d]/15 text-[#fcd34d] flex items-center justify-center shrink-0">
+            <Flame size={20} />
+          </div>
+          <div>
+            <p className="text-xl font-black text-white">{streak} يوم</p>
+            <p className="text-[10px] text-[var(--muted)]">الستريك المتواصل</p>
+          </div>
+        </div>
+
+        <div className="glass p-4 rounded-2xl border border-white/5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#a78bfa]/15 text-[#a78bfa] flex items-center justify-center shrink-0">
+            <Trophy size={20} />
+          </div>
+          <div>
+            <p className="text-xl font-black text-white">{unlockedAchievements.length} / {ACHIEVEMENTS.length}</p>
+            <p className="text-[10px] text-[var(--muted)]">الأوسمة المكتسبة</p>
+          </div>
+        </div>
+
+        <div className="glass p-4 rounded-2xl border border-white/5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#7dd3fc]/15 text-[#7dd3fc] flex items-center justify-center shrink-0">
+            <BookOpen size={20} />
+          </div>
+          <div>
+            <p className="text-xl font-black text-white">{journalEntries.length}</p>
+            <p className="text-[10px] text-[var(--muted)]">تدوينات المذكرة</p>
+          </div>
+        </div>
+      </div>
+
       {/* Grid: 2 Columns */}
       <div className="grid md:grid-cols-3 gap-6">
         {/* Left Column (2 Cols on md) */}
@@ -81,29 +143,59 @@ export default function Dashboard({ setPage }) {
             <MoodLog />
           </motion.div>
 
-          {/* 7-Day Mood Trend Overview */}
-          {recentMoods.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-              className="glass p-6 rounded-[2rem] border border-white/5"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                  <Smile size={16} className="text-[#6ee7b7]" />
-                  <span>تطور المزاج خلال الأيام الأخيرة</span>
-                </h3>
-                <button onClick={() => setPage('mood')} className="text-xs text-[#6ee7b7] hover:underline flex items-center gap-1">
-                  <span>كل السجلات</span>
+          {/* 7-Day & 30-Day Mood Trend Overview */}
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+            className="glass p-6 rounded-[2rem] border border-white/5 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                <Smile size={16} className="text-[#6ee7b7]" />
+                <span>منحنى تطور المزاج</span>
+              </h3>
+              
+              <div className="flex items-center gap-2">
+                <div className="flex bg-black/20 p-1 rounded-xl">
+                  <button
+                    onClick={() => setMoodRange(7)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                      moodRange === 7 ? 'bg-[#6ee7b7] text-black shadow-sm' : 'text-[var(--subtle)]'
+                    }`}
+                  >
+                    7 أيام
+                  </button>
+                  <button
+                    onClick={() => setMoodRange(30)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                      moodRange === 30 ? 'bg-[#6ee7b7] text-black shadow-sm' : 'text-[var(--subtle)]'
+                    }`}
+                  >
+                    30 يوم
+                  </button>
+                </div>
+                
+                <button onClick={() => setPage('mood')} className="text-xs text-[#6ee7b7] hover:underline flex items-center gap-0.5">
+                  <span>التفاصيل</span>
                   <ArrowRight size={12} />
                 </button>
               </div>
+            </div>
 
-              <div className="flex items-end justify-between gap-2 h-28 bg-black/20 p-3 rounded-2xl border border-white/5">
+            {recentMoods.length === 0 ? (
+              <div className="py-8 text-center bg-black/20 rounded-2xl border border-white/5 space-y-2">
+                <Smile size={28} className="mx-auto text-[var(--muted)] opacity-50" />
+                <p className="text-xs text-[var(--muted)]">لم تسجل حالتك الشعورية بعد. سجل أول حالة الآن لكسب +10 XP.</p>
+                <button onClick={() => setPage('mood')} className="btn-zen px-4 py-1.5 text-xs font-bold">
+                  سجل مزاجك الآن
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-end justify-between gap-1.5 h-32 bg-black/20 p-3 rounded-2xl border border-white/5 overflow-x-auto">
                 {recentMoods.map((m, idx) => (
-                  <div key={idx} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
-                    <span className="text-sm">{m.emoji || '😊'}</span>
+                  <div key={idx} className="flex-1 flex flex-col items-center gap-1 h-full justify-end min-w-[24px]">
+                    <span className="text-xs">{m.emoji || '😊'}</span>
                     <div
-                      className="w-full max-w-[16px] rounded-t-lg bg-gradient-to-t from-[#6ee7b7] to-[#a78bfa]"
-                      style={{ height: `${Math.max(20, ((m.score || 5) / 8) * 100)}%` }}
+                      className="w-full max-w-[14px] rounded-t-lg bg-gradient-to-t from-[#6ee7b7] to-[#a78bfa] transition-all"
+                      style={{ height: `${Math.max(15, ((m.score || 5) / 8) * 100)}%` }}
                     />
                     <span className="text-[9px] text-[var(--muted)]">
                       {new Date(m.date).toLocaleDateString('ar-MA', { day: 'numeric', month: 'short' })}
@@ -111,8 +203,8 @@ export default function Dashboard({ setPage }) {
                   </div>
                 ))}
               </div>
-            </motion.div>
-          )}
+            )}
+          </motion.div>
 
           {/* Recent Journal Preview */}
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
@@ -130,7 +222,12 @@ export default function Dashboard({ setPage }) {
             </div>
 
             {journalEntries.length === 0 ? (
-              <p className="text-xs text-[var(--muted)] py-4 text-center">لا توجد خواطر مسجلة بعد. اكتب أول تدوينة اليوم.</p>
+              <div className="p-6 text-center bg-black/20 rounded-2xl border border-white/5 space-y-2">
+                <p className="text-xs text-[var(--muted)]">مذكرتك الخاصة فارغة حالياً. التدوين يساعد على تفريغ الشحنات السلبية وتصفية الذهن.</p>
+                <button onClick={() => setPage('journal')} className="btn-zen px-4 py-1.5 text-xs font-bold">
+                  اكتب أول خاطرة (+15 XP)
+                </button>
+              </div>
             ) : (
               <div className="space-y-2">
                 {journalEntries.slice(0, 2).map(entry => (

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Smile, TrendingUp, Calendar, Trash2, Heart, Sparkles, Filter, Info } from 'lucide-react'
+import { Smile, TrendingUp, Calendar, Trash2, Edit3, Heart, Sparkles, Filter, Info, X, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export const MOOD_TYPES = [
@@ -37,6 +37,11 @@ export default function MoodPage() {
   const [note, setNote] = useState('')
   const [isSaved, setIsSaved] = useState(false)
   const [chartRange, setChartRange] = useState(7) // 7 or 30 days
+  const [viewMode, setViewMode] = useState('list') // 'list' or 'calendar'
+  
+  // Edit & Delete state
+  const [editingLog, setEditingLog] = useState(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
   const toggleCause = (causeId) => {
     setSelectedCauses(prev =>
@@ -62,6 +67,15 @@ export default function MoodPage() {
     setTimeout(() => setIsSaved(false), 3000)
   }
 
+  const handleUpdateLog = (e) => {
+    e.preventDefault()
+    if (!editingLog) return
+    const all = getMoodLogs()
+    const updated = all.map(l => l.id === editingLog.id ? editingLog : l)
+    localStorage.setItem('zs_moods', JSON.stringify(updated))
+    setEditingLog(null)
+  }
+
   // Statistics & Observations
   const stats = useMemo(() => {
     if (!logs.length) return null
@@ -74,7 +88,7 @@ export default function MoodPage() {
       counts[l.label] = (counts[l.label] || 0) + 1
     })
 
-    // Gentle insights
+    // Gentle non-clinical observations
     let insight = 'تظهر سجلاتك استمرارية ممتازة في مراقبة مشاعرك. الاستماع لنفسك هو أول خطوة للعافية.'
     if (avgScore >= 6) {
       insight = 'سجلت مشاعر إيجابية وهادئة في أغلب أيامك هذا الأسبوع. واصل تغذية هذه الطاقة الإيجابية!'
@@ -84,6 +98,25 @@ export default function MoodPage() {
 
     return { avgScore, counts, insight, recent }
   }, [logs, chartRange])
+
+  // Calendar days for past 30 days
+  const calendarDays = useMemo(() => {
+    const list = []
+    const now = new Date()
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(now.getDate() - i)
+      const dateStr = d.toISOString().split('T')[0]
+      const matchingLog = logs.find(l => l.date && l.date.startsWith(dateStr))
+      list.push({
+        date: d,
+        dateStr,
+        dayNum: d.getDate(),
+        log: matchingLog
+      })
+    }
+    return list
+  }, [logs])
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
@@ -257,15 +290,15 @@ export default function MoodPage() {
             </div>
 
             {/* Interactive SVG Chart */}
-            <div className="h-44 w-full flex items-end justify-between gap-2 pt-6 pb-2 px-3 relative bg-black/20 rounded-2xl border border-white/5">
-              {stats.recent.slice(0, 14).reverse().map((item, idx) => {
+            <div className="h-44 w-full flex items-end justify-between gap-1.5 pt-6 pb-2 px-3 relative bg-black/20 rounded-2xl border border-white/5 overflow-x-auto">
+              {stats.recent.slice(0, chartRange === 30 ? 20 : 14).reverse().map((item, idx) => {
                 const heightPct = Math.max(15, ((item.score || 5) / 8) * 100)
                 const moodObj = MOOD_TYPES.find(m => m.label === item.label) || MOOD_TYPES[0]
                 return (
-                  <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group relative">
-                    <span className="text-sm transition-transform group-hover:scale-125">{item.emoji || moodObj.emoji}</span>
+                  <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group relative min-w-[24px]">
+                    <span className="text-xs transition-transform group-hover:scale-125">{item.emoji || moodObj.emoji}</span>
                     <div
-                      className="w-full max-w-[20px] rounded-t-lg transition-all duration-300 relative"
+                      className="w-full max-w-[16px] rounded-t-lg transition-all duration-300 relative"
                       style={{
                         height: `${heightPct}%`,
                         background: `linear-gradient(180deg, ${moodObj.color}, ${moodObj.color}44)`
@@ -276,7 +309,7 @@ export default function MoodPage() {
                         {item.label} ({item.intensity || 5}/10)
                       </div>
                     </div>
-                    <span className="text-[10px]" style={{ color: 'var(--muted)' }}>
+                    <span className="text-[9px]" style={{ color: 'var(--muted)' }}>
                       {new Date(item.date).toLocaleDateString('ar-MA', { day: 'numeric', month: 'short' })}
                     </span>
                   </div>
@@ -298,7 +331,7 @@ export default function MoodPage() {
           <div className="glass p-6 rounded-[2rem] border border-white/5 space-y-4">
             <h3 className="font-bold text-base text-white">توزيع المشاعر</h3>
             <div className="space-y-3">
-              {Object.entries(stats.counts).slice(0, 5).map(([label, count]) => {
+              {Object.entries(stats.counts).slice(0, 6).map(([label, count]) => {
                 const moodObj = MOOD_TYPES.find(m => m.label === label) || MOOD_TYPES[0]
                 const pct = Math.round((count / logs.length) * 100)
                 return (
@@ -321,54 +354,198 @@ export default function MoodPage() {
         </div>
       )}
 
-      {/* History Log Table */}
+      {/* History Log Section with List & Calendar View Options */}
       {logs.length > 0 && (
-        <div className="glass p-6 md:p-8 rounded-[2rem] border border-white/5">
-          <h3 className="font-bold text-lg mb-4 text-white">سجل المشاعر السابقة</h3>
-          <div className="divide-y divide-white/5">
-            {logs.map((log) => {
-              const moodObj = MOOD_TYPES.find(m => m.label === log.label) || MOOD_TYPES[0]
-              return (
-                <div key={log.id || log.date} className="py-4 flex items-center justify-between gap-4 group">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-inner shrink-0"
-                      style={{ background: `${moodObj.color}15`, border: `1px solid ${moodObj.color}33` }}
-                    >
-                      {log.emoji || moodObj.emoji}
+        <div className="glass p-6 md:p-8 rounded-[2rem] border border-white/5 space-y-5">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-lg text-white">سجل المشاعر والتقويم</h3>
+            <div className="flex gap-1.5 bg-black/20 p-1 rounded-xl">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'list' ? 'bg-[#6ee7b7] text-black shadow-sm' : 'text-[var(--subtle)]'
+                }`}
+              >
+                القائمة
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'calendar' ? 'bg-[#6ee7b7] text-black shadow-sm' : 'text-[var(--subtle)]'
+                }`}
+              >
+                التقويم الشهري
+              </button>
+            </div>
+          </div>
+
+          {/* Calendar View Mode */}
+          {viewMode === 'calendar' ? (
+            <div className="space-y-3">
+              <p className="text-xs text-[var(--muted)]">سجل المشاعر خلال آخر 30 يوماً:</p>
+              <div className="grid grid-cols-6 sm:grid-cols-10 gap-2">
+                {calendarDays.map((d) => (
+                  <div
+                    key={d.dateStr}
+                    className="p-2 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col items-center justify-center text-center gap-1 min-h-[60px]"
+                  >
+                    <span className="text-[10px] text-[var(--muted)]">{d.dayNum}</span>
+                    {d.log ? (
+                      <span className="text-lg" title={`${d.log.label} (${d.log.intensity || 5}/10)`}>
+                        {d.log.emoji}
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-[var(--muted)] opacity-30">-</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* List View Mode */
+            <div className="divide-y divide-white/5">
+              {logs.map((log) => {
+                const moodObj = MOOD_TYPES.find(m => m.label === log.label) || MOOD_TYPES[0]
+                return (
+                  <div key={log.id || log.date} className="py-4 flex items-center justify-between gap-4 group">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-inner shrink-0"
+                        style={{ background: `${moodObj.color}15`, border: `1px solid ${moodObj.color}33` }}
+                      >
+                        {log.emoji || moodObj.emoji}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-sm text-white">{log.label}</span>
+                          {log.intensity && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-white/5 text-[var(--subtle)]">
+                              الشدة {log.intensity}/10
+                            </span>
+                          )}
+                        </div>
+                        {log.note && <p className="text-xs text-[var(--subtle)] mb-1 leading-relaxed">{log.note}</p>}
+                        <div className="flex items-center gap-2 text-[10px]" style={{ color: 'var(--muted)' }}>
+                          <span>{new Date(log.date).toLocaleDateString('ar-MA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                          {log.causes && log.causes.length > 0 && (
+                            <span>• {log.causes.map(c => CAUSES_LIST.find(x => x.id === c)?.label || c).join(', ')}</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-sm text-white">{log.label}</span>
-                        {log.intensity && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-white/5 text-[var(--subtle)]">
-                            الشدة {log.intensity}/10
-                          </span>
-                        )}
-                      </div>
-                      {log.note && <p className="text-xs text-[var(--subtle)] mb-1 leading-relaxed">{log.note}</p>}
-                      <div className="flex items-center gap-2 text-[10px]" style={{ color: 'var(--muted)' }}>
-                        <span>{new Date(log.date).toLocaleDateString('ar-MA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                        {log.causes && log.causes.length > 0 && (
-                          <span>• {log.causes.map(c => CAUSES_LIST.find(x => x.id === c)?.label || c).join(', ')}</span>
-                        )}
-                      </div>
+
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => setEditingLog({ ...log })}
+                        className="p-2 rounded-xl text-[var(--subtle)] hover:text-white hover:bg-white/5 transition-all"
+                        title="تعديل الملاحظة"
+                      >
+                        <Edit3 size={15} />
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirmId(log.id)}
+                        className="p-2 rounded-xl text-red-400 hover:bg-red-500/10 transition-all"
+                        title="حذف السجل"
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     </div>
                   </div>
-
-                  <button
-                    onClick={() => deleteMoodLog(log.id)}
-                    className="p-2 rounded-xl text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
-                    title="حذف السجل"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {editingLog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass p-6 md:p-8 rounded-[2rem] max-w-md w-full border border-white/10 space-y-4"
+            >
+              <div className="flex justify-between items-center pb-2 border-b border-white/5">
+                <h3 className="font-bold text-white text-base">تعديل سجل المشاعر</h3>
+                <button onClick={() => setEditingLog(null)} className="text-[var(--muted)] hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[var(--subtle)] mb-1">الملاحظة الشخصية</label>
+                <textarea
+                  rows={3}
+                  value={editingLog.note || ''}
+                  onChange={e => setEditingLog({ ...editingLog, note: e.target.value })}
+                  className="zen-input text-xs resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[var(--subtle)] mb-1">الشدة ({editingLog.intensity || 5}/10)</label>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  value={editingLog.intensity || 5}
+                  onChange={e => setEditingLog({ ...editingLog, intensity: Number(e.target.value) })}
+                  className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#6ee7b7]"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button onClick={handleUpdateLog} className="btn-zen flex-1 py-2.5 text-xs font-bold">
+                  حفظ التعديل
+                </button>
+                <button onClick={() => setEditingLog(null)} className="btn-ghost flex-1 py-2.5 text-xs">
+                  إلغاء
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass p-8 rounded-3xl max-w-sm w-full text-center border border-white/10"
+            >
+              <Trash2 size={36} className="mx-auto mb-3 text-red-400" />
+              <h3 className="text-lg font-bold text-white mb-2">تأكيد حذف هذا السجل؟</h3>
+              <p className="text-xs text-[var(--muted)] mb-6 leading-relaxed">
+                هل أنت متأكد من حذف هذا السجل الشعوري؟ لن تتمكن من استرجاعه بعد الحذف.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    deleteMoodLog(deleteConfirmId)
+                    setDeleteConfirmId(null)
+                  }}
+                  className="flex-1 py-3 bg-red-500 hover:bg-red-600 rounded-xl text-xs font-bold text-white shadow-lg"
+                >
+                  نعم، احذف
+                </button>
+                <button
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="btn-ghost flex-1 py-3 text-xs"
+                >
+                  تراجع
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
