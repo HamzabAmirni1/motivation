@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Sparkles, Flame, Trophy, Smile, BookOpen, Target, ArrowRight, Heart, Wind, Compass, Activity, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import XPBar from './XPBar'
 import DailyQuest from './DailyQuest'
 import MoodLog from './MoodLog'
@@ -10,6 +11,7 @@ import { calculateLevel, ACHIEVEMENTS } from '../lib/gamification'
 
 export default function Dashboard({ setPage }) {
   const { profile, getMoodLogs, getJournalEntries, getCompletedQuests } = useAuth()
+  const { t, lang } = useLanguage()
   const moodLogs = getMoodLogs()
   const journalEntries = getJournalEntries()
   const completedQuests = getCompletedQuests()
@@ -19,8 +21,22 @@ export default function Dashboard({ setPage }) {
   const xp = profile?.xp || 0
   const lv = calculateLevel(xp)
   const streak = profile?.streak_count || 0
-  const hour = new Date().getHours()
-  const greet = hour < 12 ? 'صباح الخير والسكينة' : hour < 18 ? 'مساء النور والراحة' : 'ليلة هادئة ومباركة'
+
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (lang === 'fr') {
+      return hour < 18 ? 'Bonjour' : 'Bonsoir'
+    }
+    if (lang === 'en') {
+      return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+    }
+    if (lang === 'darija') {
+      return hour < 12 ? 'صباح الخير والراحة' : hour < 18 ? 'مساء الخير والسكينة' : 'ليلة هادئة ومريحة'
+    }
+    return hour < 12 ? 'صباح الخير والسكينة' : hour < 18 ? 'مساء النور والراحة' : 'ليلة هادئة ومباركة'
+  }
+
+  const greet = getGreeting()
 
   // User stats from storage
   const stats = useMemo(() => {
@@ -69,14 +85,14 @@ export default function Dashboard({ setPage }) {
             className="btn-zen px-5 py-2.5 text-xs font-bold flex items-center gap-1.5 shadow-lg"
           >
             <Smile size={16} />
-            <span>سجل مزاجك</span>
+            <span>{t('nav_mood')}</span>
           </button>
           <button
             onClick={() => setPage('zenbot')}
             className="btn-ghost px-5 py-2.5 text-xs font-bold flex items-center gap-1.5"
           >
             <Sparkles size={16} className="text-[#6ee7b7]" />
-            <span>تحدث مع Zen AI</span>
+            <span>{t('nav_zenbot')}</span>
           </button>
         </div>
       </motion.div>
@@ -94,7 +110,7 @@ export default function Dashboard({ setPage }) {
           </div>
           <div>
             <p className="text-xl font-black text-white">{totalExercises}</p>
-            <p className="text-[10px] text-[var(--muted)]">تمارين ونشاطات منجزة</p>
+            <p className="text-[10px] text-[var(--muted)]">{t('dash_exercises_done', 'تمارين منجزة')}</p>
           </div>
         </div>
 
@@ -103,8 +119,8 @@ export default function Dashboard({ setPage }) {
             <Flame size={20} />
           </div>
           <div>
-            <p className="text-xl font-black text-white">{streak} يوم</p>
-            <p className="text-[10px] text-[var(--muted)]">الستريك المتواصل</p>
+            <p className="text-xl font-black text-white">{streak}</p>
+            <p className="text-[10px] text-[var(--muted)]">{t('dash_streak', 'سلسلة متواصلة')}</p>
           </div>
         </div>
 
@@ -114,7 +130,7 @@ export default function Dashboard({ setPage }) {
           </div>
           <div>
             <p className="text-xl font-black text-white">{unlockedAchievements.length} / {ACHIEVEMENTS.length}</p>
-            <p className="text-[10px] text-[var(--muted)]">الأوسمة المكتسبة</p>
+            <p className="text-[10px] text-[var(--muted)]">{t('profile_achievements', 'الأوسمة المكتسبة')}</p>
           </div>
         </div>
 
@@ -124,7 +140,7 @@ export default function Dashboard({ setPage }) {
           </div>
           <div>
             <p className="text-xl font-black text-white">{journalEntries.length}</p>
-            <p className="text-[10px] text-[var(--muted)]">تدوينات المذكرة</p>
+            <p className="text-[10px] text-[var(--muted)]">{t('nav_journal', 'تدوينات المذكرة')}</p>
           </div>
         </div>
       </div>

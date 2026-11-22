@@ -3,40 +3,24 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home, Smile, BookOpen, Sparkles, Bot, Compass,
   Headphones, Target, Gamepad2, User, ShieldAlert,
-  Code2, LogOut, Bell, Menu, X, Flame, ChevronLeft
+  Code2, LogOut, Bell, Menu, X, Flame, ChevronLeft,
+  Globe, Check
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import { calculateLevel } from '../lib/gamification'
 import NotificationsCenter from './NotificationsCenter'
 
-// Core primary links (spacious and clean on top bar)
-const PRIMARY_NAV = [
-  { id: 'dashboard', label: 'الرئيسية', icon: Home },
-  { id: 'mood',      label: 'المزاج',   icon: Smile },
-  { id: 'journal',   label: 'المذكرة',  icon: BookOpen },
-  { id: 'tools',     label: 'الأدوات',  icon: Sparkles },
-  { id: 'zenbot',    label: 'Zen AI',   icon: Bot },
-];
+const ADMIN_EMAILS = [
+  'amirnihamza61@gmail.com',
+  'hamza.amirni@gmail.com',
+  'hamzaamirni451@gmail.com'
+]
 
-// Secondary / activities menu items in the side drawer
-const getDrawerSections = (isAdmin) => [
-  {
-    category: 'الاسترخاء والأنشطة',
-    items: [
-      { id: 'sounds',  label: 'أصوات الاسترخاء', desc: 'مطر، أمواج، نسيم وتأمل', icon: Headphones, color: '#7dd3fc' },
-      { id: 'habits',  label: 'العادات والتحديات', desc: 'متابعة أسبوعية وستريك', icon: Target,     color: '#6ee7b7' },
-      { id: 'games',   label: 'الألعاب الذهنية', desc: '6 ألعاب لتصفية العقل',  icon: Gamepad2,   color: '#a78bfa' },
-    ]
-  },
-  {
-    category: 'الحساب والمشروع',
-    items: [
-      { id: 'profile',   label: 'حسابي والإعدادات', desc: 'الملف الشخصي، الأوسمة، واللغة', icon: User, color: '#fcd34d' },
-      ...(isAdmin ? [{ id: 'admin', label: 'لوحة الإدارة', desc: 'إحصائيات المنصة', icon: ShieldAlert, color: '#fda4af' }] : []),
-      { id: 'developer', label: 'عن المطور ZenStep', desc: 'معلومات التواصل والمشروع',    icon: Code2, color: '#94a3b8' },
-    ]
-  }
-];
+function checkIsAdmin(user, profile) {
+  const email = (user?.email || '').toLowerCase().trim()
+  return profile?.role === 'admin' || ADMIN_EMAILS.includes(email)
+}
 
 export function renderAvatarContent(profile, fallbackEmoji = '🌱') {
   const url = profile?.avatar_url
@@ -58,47 +42,75 @@ export function renderAvatarContent(profile, fallbackEmoji = '🌱') {
   return <span className="select-none">{fallbackEmoji}</span>
 }
 
-function checkIsAdmin(user, profile) {
-  const email = (user?.email || '').toLowerCase()
-  return (
-    profile?.role === 'admin' ||
-    email === 'amirnihamza61@gmail.com' ||
-    email === 'hamza.amirni@gmail.com'
-  )
-}
-
 export default function Navbar({ page, setPage }) {
   const { user, profile, signOut, notifications } = useAuth()
+  const { lang, setLang, t, dir, languages } = useLanguage()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [langMenuOpen, setLangMenuOpen] = useState(false)
 
   const isAdmin = checkIsAdmin(user, profile)
-  const drawerSections = getDrawerSections(isAdmin)
+
+  // Primary top links with i18n
+  const primaryNav = [
+    { id: 'dashboard', label: t('nav_dashboard'), icon: Home },
+    { id: 'mood',      label: t('nav_mood'),      icon: Smile },
+    { id: 'journal',   label: t('nav_journal'),   icon: BookOpen },
+    { id: 'tools',     label: t('nav_tools'),     icon: Sparkles },
+    { id: 'zenbot',    label: t('nav_zenbot'),    icon: Bot },
+  ]
+
+  // Secondary drawer items with i18n
+  const drawerSections = [
+    {
+      category: t('drawer_relax_activities'),
+      items: [
+        { id: 'sounds',  label: t('nav_sounds'), desc: t('drawer_sounds_desc'), icon: Headphones, color: '#7dd3fc' },
+        { id: 'habits',  label: t('nav_habits'), desc: t('drawer_habits_desc'), icon: Target,     color: '#6ee7b7' },
+        { id: 'games',   label: t('nav_games'),  desc: t('drawer_games_desc'),  icon: Gamepad2,   color: '#a78bfa' },
+      ]
+    },
+    {
+      category: t('drawer_account_project'),
+      items: [
+        { id: 'profile',   label: t('nav_profile'),   desc: t('drawer_profile_desc'), icon: User, color: '#fcd34d' },
+        ...(isAdmin ? [{ id: 'admin', label: t('nav_admin'), desc: t('drawer_admin_desc'), icon: ShieldAlert, color: '#fda4af' }] : []),
+        { id: 'developer', label: t('nav_developer'), desc: t('drawer_dev_desc'),     icon: Code2, color: '#94a3b8' },
+      ]
+    }
+  ]
 
   const lv = calculateLevel(profile?.xp || 0)
   const unreadCount = notifications.filter(n => !n.read).length
   const streak = profile?.streak_count || 0
+  const activeLangConfig = languages.find(l => l.code === lang) || languages[0]
 
   const handleNavClick = (id) => {
     setPage(id)
     setDrawerOpen(false)
   }
 
+  const handleSelectLang = (code) => {
+    setLang(code)
+    setLangMenuOpen(false)
+  }
+
   return (
     <>
       <nav
-        className="fixed top-0 left-0 right-0 z-40 px-4 py-2.5 transition-all"
+        className="fixed top-0 left-0 right-0 z-40 px-3 md:px-4 py-2.5 transition-all"
         style={{
           background: 'rgba(13,17,23,0.85)',
           backdropFilter: 'blur(20px)',
           borderBottom: '1px solid rgba(255,255,255,0.06)'
         }}
+        dir={dir}
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
           {/* Brand */}
           <div
             onClick={() => handleNavClick('dashboard')}
-            className="flex items-center gap-2.5 cursor-pointer select-none shrink-0"
+            className="flex items-center gap-2 cursor-pointer select-none shrink-0"
           >
             <div className="w-8 h-8 rounded-xl bg-[#6ee7b7]/15 border border-[#6ee7b7]/30 flex items-center justify-center text-lg shadow-sm">
               🌱
@@ -106,16 +118,16 @@ export default function Navbar({ page, setPage }) {
             <span className="font-black text-xl gradient-text tracking-tight">ZenStep</span>
           </div>
 
-          {/* Clean Desktop Navigation (Only 5 core links + Side Drawer Trigger) */}
-          <div className="hidden md:flex items-center gap-1.5">
-            {PRIMARY_NAV.map(item => {
+          {/* Clean Desktop Navigation (5 core links + Side Drawer Trigger) */}
+          <div className="hidden md:flex items-center gap-1">
+            {primaryNav.map(item => {
               const Icon = item.icon
               const isActive = page === item.id
               return (
                 <button
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
-                  className="relative px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2"
+                  className="relative px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5"
                   style={{ color: isActive ? '#6ee7b7' : 'var(--subtle)' }}
                 >
                   {isActive && (
@@ -145,19 +157,61 @@ export default function Navbar({ page, setPage }) {
               }`}
             >
               <Compass size={16} className="text-[#a78bfa]" />
-              <span>الأنشطة والمزيد</span>
+              <span>{t('nav_more')}</span>
             </button>
           </div>
 
-          {/* Right Header Controls (Notifications, Level, Avatar, Menu toggle) */}
-          <div className="flex items-center gap-2">
+          {/* Right Header Controls (Language, Notifications, Streak, Avatar, Menu toggle) */}
+          <div className="flex items-center gap-1.5 md:gap-2">
+            {/* Language Switcher Pill */}
+            <div className="relative">
+              <button
+                onClick={() => setLangMenuOpen(!langMenuOpen)}
+                className="px-2.5 py-1.5 rounded-xl glass hover:bg-white/10 text-xs font-bold border border-white/5 text-[var(--subtle)] hover:text-white transition-all flex items-center gap-1 shrink-0"
+                title={t('profile_language')}
+              >
+                <span>{activeLangConfig.flag}</span>
+                <span className="hidden sm:inline text-[11px] uppercase">{activeLangConfig.code}</span>
+              </button>
+
+              <AnimatePresence>
+                {langMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setLangMenuOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className={`absolute top-full mt-2 ${dir === 'rtl' ? 'left-0' : 'right-0'} z-50 glass p-2 rounded-2xl border border-white/10 shadow-2xl bg-[#0f141f] min-w-[160px] space-y-1`}
+                    >
+                      {languages.map(l => (
+                        <button
+                          key={l.code}
+                          onClick={() => handleSelectLang(l.code)}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                            lang === l.code ? 'bg-[#6ee7b7]/15 text-[#6ee7b7] border border-[#6ee7b7]/30' : 'text-white/80 hover:bg-white/5'
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span>{l.flag}</span>
+                            <span>{l.name}</span>
+                          </span>
+                          {lang === l.code && <Check size={14} className="text-[#6ee7b7]" />}
+                        </button>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Notification Bell */}
             <button
               onClick={() => setNotifOpen(true)}
-              className="relative p-2.5 rounded-xl glass hover:bg-white/10 text-[var(--subtle)] hover:text-white transition-all shrink-0"
-              title="الإشعارات"
+              className="relative p-2 rounded-xl glass hover:bg-white/10 text-[var(--subtle)] hover:text-white transition-all shrink-0"
+              title={t('nav_notifications')}
             >
-              <Bell size={18} />
+              <Bell size={17} />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#6ee7b7] opacity-75"></span>
@@ -172,7 +226,7 @@ export default function Navbar({ page, setPage }) {
             {profile && (
               <div
                 onClick={() => handleNavClick('profile')}
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl glass cursor-pointer hover:border-[#6ee7b7]/30 transition-all shrink-0"
+                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl glass cursor-pointer hover:border-[#6ee7b7]/30 transition-all shrink-0"
               >
                 <span className="text-xs font-bold text-[#6ee7b7]">Lv.{lv.level}</span>
                 <span className="text-[11px] text-[var(--muted)]">|</span>
@@ -185,12 +239,12 @@ export default function Navbar({ page, setPage }) {
             {/* User Avatar */}
             <button
               onClick={() => handleNavClick('profile')}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-md ring-2 ring-white/10 hover:ring-[#6ee7b7]/50 transition-all overflow-hidden shrink-0 select-none"
+              className="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-md ring-2 ring-white/10 hover:ring-[#6ee7b7]/50 transition-all overflow-hidden shrink-0 select-none"
               style={{
                 background: 'linear-gradient(135deg,#6ee7b7,#a78bfa)',
                 color: '#0d1117'
               }}
-              title="حسابي"
+              title={t('nav_profile')}
             >
               {renderAvatarContent(profile, '🌱')}
             </button>
@@ -198,10 +252,10 @@ export default function Navbar({ page, setPage }) {
             {/* Side Drawer Toggle Button (Always visible on mobile, quick access on desktop) */}
             <button
               onClick={() => setDrawerOpen(!drawerOpen)}
-              className="p-2.5 rounded-xl glass text-[var(--subtle)] hover:text-white transition-all shrink-0"
-              title="القائمة الجانبية"
+              className="p-2 rounded-xl glass text-[var(--subtle)] hover:text-white transition-all shrink-0"
+              title={t('nav_more')}
             >
-              {drawerOpen ? <X size={19} /> : <Menu size={19} />}
+              {drawerOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </div>
@@ -210,7 +264,7 @@ export default function Navbar({ page, setPage }) {
       {/* Side Quick-Access Drawer & Quick Menu (Desktop & Mobile) */}
       <AnimatePresence>
         {drawerOpen && (
-          <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="fixed inset-0 z-50 flex justify-end" dir={dir}>
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -222,11 +276,11 @@ export default function Navbar({ page, setPage }) {
 
             {/* Slide-out Drawer Panel */}
             <motion.div
-              initial={{ x: '100%' }}
+              initial={{ x: dir === 'rtl' ? '-100%' : '100%' }}
               animate={{ x: 0 }}
-              exit={{ x: '100%' }}
+              exit={{ x: dir === 'rtl' ? '-100%' : '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="glass relative z-10 w-full max-w-sm h-full flex flex-col justify-between p-6 border-l border-white/10 shadow-2xl bg-[#0f141f]/95 overflow-y-auto"
+              className="glass relative z-10 w-full max-w-sm h-full flex flex-col justify-between p-6 border-x border-white/10 shadow-2xl bg-[#0f141f]/95 overflow-y-auto"
             >
               <div className="space-y-6">
                 {/* Drawer Header */}
@@ -239,9 +293,9 @@ export default function Navbar({ page, setPage }) {
                       {renderAvatarContent(profile, lv.emoji)}
                     </div>
                     <div>
-                      <h3 className="font-bold text-sm text-white truncate max-w-[170px]">{profile?.username || 'صاحبي'}</h3>
+                      <h3 className="font-bold text-sm text-white truncate max-w-[160px]">{profile?.username || 'صاحبي'}</h3>
                       <p className="text-[11px] text-[#6ee7b7] font-semibold">
-                        Lv.{lv.level} • {lv.titleAr || lv.title} ({profile?.xp || 0} XP)
+                        Lv.{lv.level} • {profile?.xp || 0} XP
                       </p>
                     </div>
                   </div>
@@ -254,20 +308,42 @@ export default function Navbar({ page, setPage }) {
                   </button>
                 </div>
 
+                {/* Language Switcher Bar inside Drawer */}
+                <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
+                    <Globe size={13} />
+                    <span>{t('profile_language')}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {languages.map(l => (
+                      <button
+                        key={l.code}
+                        onClick={() => handleSelectLang(l.code)}
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                          lang === l.code ? 'bg-[#6ee7b7] text-black shadow-md' : 'glass text-white/70 hover:text-white border-white/5'
+                        }`}
+                      >
+                        <span>{l.flag}</span>
+                        <span className="truncate">{l.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Mobile-only primary nav items */}
                 <div className="md:hidden space-y-1">
                   <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider px-2 mb-2">
-                    الأقسام الرئيسية
+                    {t('drawer_main_sections')}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
-                    {PRIMARY_NAV.map(item => {
+                    {primaryNav.map(item => {
                       const Icon = item.icon
                       const isActive = page === item.id
                       return (
                         <button
                           key={item.id}
                           onClick={() => handleNavClick(item.id)}
-                          className="flex items-center gap-2 p-2.5 rounded-xl text-xs font-bold transition-all text-right"
+                          className="flex items-center gap-2 p-2.5 rounded-xl text-xs font-bold transition-all text-start"
                           style={{
                             background: isActive ? 'rgba(110,231,183,0.15)' : 'rgba(255,255,255,0.03)',
                             color: isActive ? '#6ee7b7' : 'var(--text)',
@@ -296,7 +372,7 @@ export default function Navbar({ page, setPage }) {
                           <button
                             key={item.id}
                             onClick={() => handleNavClick(item.id)}
-                            className="w-full flex items-center justify-between p-3 rounded-2xl transition-all text-right group"
+                            className="w-full flex items-center justify-between p-3 rounded-2xl transition-all text-start group"
                             style={{
                               background: isActive ? `${item.color}18` : 'rgba(255,255,255,0.02)',
                               border: isActive ? `1.5px solid ${item.color}55` : '1px solid rgba(255,255,255,0.04)'
@@ -316,7 +392,7 @@ export default function Navbar({ page, setPage }) {
                                 <p className="text-[10px] text-[var(--muted)]">{item.desc}</p>
                               </div>
                             </div>
-                            <ChevronLeft size={16} className="text-[var(--muted)] opacity-40 group-hover:opacity-100 transition-opacity" />
+                            <ChevronLeft size={16} className={`text-[var(--muted)] opacity-40 group-hover:opacity-100 transition-opacity ${dir === 'ltr' ? 'rotate-180' : ''}`} />
                           </button>
                         )
                       })}
@@ -335,7 +411,7 @@ export default function Navbar({ page, setPage }) {
                   className="w-full py-3 rounded-2xl text-xs font-bold text-red-400 bg-red-400/10 hover:bg-red-400/20 flex items-center justify-center gap-2 transition-colors border border-red-400/20"
                 >
                   <LogOut size={16} />
-                  <span>تسجيل الخروج من الحساب</span>
+                  <span>{t('nav_logout')}</span>
                 </button>
               </div>
             </motion.div>

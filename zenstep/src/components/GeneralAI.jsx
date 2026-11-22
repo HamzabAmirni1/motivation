@@ -1,22 +1,35 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
-import { Trash2, Send, Bot, User, X, AlertCircle, Sparkles, MessageCircle, Heart } from 'lucide-react'
+import {
+  Trash2, Send, Bot, User, X, AlertCircle, Sparkles,
+  Copy, Check, BookPlus, Table, ArrowRight, ExternalLink,
+  Flame, Wind, Headphones, Gamepad2, Heart, RotateCcw
+} from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import { askZenAI } from '../services/aiService'
 
-const SUGGESTED_QUESTIONS = [
-  'حاس بالضغط والتوتر اليوم 😟',
-  'عطيني تمرين تنفس مهدئ دابا 🌬️',
-  'كيفاش نرتب أفكاري ونركز؟ 🎯',
-  'شي فكرة إيجابية تبدل ليا المود ✨',
-  'Je me sens fatigué et stressé 🌿',
-  'Help me calm down before sleep 🌙'
-];
+// Parse [ACTION:TYPE:LABEL] tags from AI text
+function parseActionsFromText(rawText) {
+  if (!rawText || typeof rawText !== 'string') return { cleanText: '', actions: [] }
+  const actionRegex = /\[ACTION:([A-Z_]+)(?::([^\]]+))?\]/g
+  const actions = []
+  let match
+  while ((match = actionRegex.exec(rawText)) !== null) {
+    actions.push({
+      type: match[1],
+      label: match[2] || match[1]
+    })
+  }
+  const cleanText = rawText.replace(actionRegex, '').trim()
+  return { cleanText, actions }
+}
 
-export default function GeneralAI() {
+export default function GeneralAI({ setPage }) {
   const { profile, getMoodLogs, syncToDatabase } = useAuth()
-  const moodLogs = getMoodLogs()
+  const { t, lang, dir } = useLanguage()
+  const moodLogs = getMoodLogs ? getMoodLogs() : []
   const recentMood = moodLogs[0]?.label || null
 
   const [messages, setMessages] = useState(() => {
@@ -33,12 +46,29 @@ export default function GeneralAI() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [copiedId, setCopiedId] = useState(null)
+  const [savedJournalId, setSavedJournalId] = useState(null)
+  const [toastMsg, setToastMsg] = useState('')
   const endRef = useRef(null)
+
+  const showToast = (msg) => {
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(''), 2500)
+  }
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
     localStorage.setItem('zs_chat', JSON.stringify(messages))
   }, [messages, loading])
+
+  // Suggested Prompts with quick table & button generation
+  const suggestedPrompts = [
+    { label: '📊 جدول تنظيم اليوم ومحاربة التوتر', prompt: 'صاوب ليا جدول زمني متوازن لتنظيم اليوم وتخفيف التوتر مع تمارين الراحة (Markdown Table)' },
+    { label: '📋 جدول تفكيك الأفكار السلبية (CBT)', prompt: 'قاد ليا جدول 4 أعمدة بتقنية CBT لتفكيك الأفكار المشوهة وإعادة صياغتها (Markdown Table)' },
+    { label: '🌬️ تمرين تنفس مهدئ دابا', prompt: 'عطيني تمرين تنفس مهدئ دابا مع الخطوات بدقة' },
+    { label: '🎯 جدول العادات اليومية الإيجابية', prompt: 'اقترح ليا جدول عادات يومية أسبوعي لتعزيز طاقتي وراحتي النفسية (Markdown Table)' },
+    { label: '🌙 المساعدة على النعاس والراحة', prompt: 'حاس بالأرق وصعوبة النعاس، شنو الخطوات اللي ندير دابا باش نرتاح؟' },
+  ]
 
   const handleSend = async (textToSend = null) => {
     const userMsg = (textToSend || input).trim()
@@ -54,7 +84,8 @@ export default function GeneralAI() {
       const userContext = {
         mood: recentMood,
         streak: profile?.streak_count || 0,
-        xp: profile?.xp || 0
+        xp: profile?.xp || 0,
+        language: lang
       }
 
       const { text } = await askZenAI(userMsg, newMessages, userContext)
@@ -62,14 +93,14 @@ export default function GeneralAI() {
       const aiMsgId = Date.now().toString() + "_ai"
       const updatedMessages = [...newMessages, { id: aiMsgId, role: 'model', text }]
       setMessages(updatedMessages)
-      syncToDatabase()
+      if (syncToDatabase) syncToDatabase()
     } catch (error) {
       setMessages(prev => [
         ...prev,
         {
           id: 'err_' + Date.now(),
           role: 'model',
-          text: 'أنا هنا معاك دايماً. خود نفس عميق، وقول ليا كيفاش نقدر نعاونك دابا بكلماتك البسيطة. 🌱'
+          text: 'أنا هنا معاك دايماً 💚 خود نفس عميق، وقول ليا كيفاش نقدر نعاونك دابا بكلماتك البسيطة. [ACTION:BREATHE:🌬️ تمرين تنفس مهدئ]'
         }
       ])
     } finally {
@@ -77,9 +108,59 @@ export default function GeneralAI() {
     }
   }
 
+  const handleActionClick = (action) => {
+    if (!setPage) return
+    switch (action.type) {
+      case 'BREATHE':
+      case 'GROUNDING':
+      case 'CBT':
+        setPage('tools')
+        break
+      case 'SOUNDS':
+        setPage('sounds')
+        break
+      case 'JOURNAL':
+        setPage('journal')
+        break
+      case 'GAMES':
+        setPage('games')
+        break
+      default:
+        setPage('tools')
+    }
+  }
+
+  const handleCopyMessage = (id, text) => {
+    navigator.clipboard?.writeText(text)
+    setCopiedId(id)
+    showToast(t('common_copied', 'تم النسخ بنجاح ✓'))
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const handleSaveToJournal = (id, text) => {
+    try {
+      const existing = JSON.parse(localStorage.getItem('zs_journal') || '[]')
+      const newEntry = {
+        id: Date.now().toString(),
+        title: 'فكرة من Zen AI 🌱',
+        body: text,
+        mood: 'calm',
+        tags: ['Zen AI', 'إلهام'],
+        created_at: new Date().toISOString()
+      }
+      existing.unshift(newEntry)
+      localStorage.setItem('zs_journal', JSON.stringify(existing))
+      setSavedJournalId(id)
+      showToast('تم الحفظ في المذكرة الخاصة بنجاح ✓')
+      setTimeout(() => setSavedJournalId(null), 2500)
+    } catch (err) {
+      console.warn('Save to journal failed:', err)
+    }
+  }
+
   const deleteMessage = (id) => {
     setMessages(prev => prev.filter(m => m.id !== id))
-    syncToDatabase()
+    if (syncToDatabase) syncToDatabase()
   }
 
   const doClearChat = () => {
@@ -89,100 +170,192 @@ export default function GeneralAI() {
       text: 'أهلاً بك من جديد! 🌿 كيف أقدر أساعدك اليوم في صفاء ذهنك وراحتك؟'
     }]
     setMessages(reset)
-    syncToDatabase()
+    if (syncToDatabase) syncToDatabase()
     setShowConfirm(false)
+    showToast('تمت إعادة ضبط المحادثة ✓')
   }
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col h-[82vh] relative text-[rgba(255,255,255,0.9)] pb-2">
+    <div className="max-w-4xl mx-auto flex flex-col h-[82vh] relative text-[rgba(255,255,255,0.9)] pb-2" dir={dir}>
+      {/* Toast Feedback */}
+      <AnimatePresence>
+        {toastMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-[#6ee7b7] text-black text-xs font-bold shadow-2xl flex items-center gap-1.5"
+          >
+            <Check size={14} />
+            <span>{toastMsg}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="mb-3 flex items-center justify-between px-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl shadow-lg"
+          <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl shadow-lg shrink-0"
             style={{ background: 'linear-gradient(135deg, #6ee7b7, #10b981)' }}>
             🌱
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-white">Zen AI Assistant</h1>
+              <h1 className="text-xl font-black text-white">{t('ai_title', 'Zen AI Assistant')}</h1>
               <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#6ee7b7]/15 text-[#6ee7b7] border border-[#6ee7b7]/30">
-                مساعد العافية الذكي
+                AI Wellness
               </span>
             </div>
-            <p className="text-xs text-[var(--muted)]">استماع تعاطفي، تقنيات استرخاء، وتوجيه نفسي إيجابي</p>
+            <p className="text-xs text-[var(--muted)]">{t('ai_subtitle', 'استماع تعاطفي، تقنيات استرخاء، وتوجيه نفسي إيجابي')}</p>
           </div>
         </div>
 
         <button 
           onClick={() => setShowConfirm(true)} 
           className="text-xs text-[var(--muted)] hover:text-red-400 flex items-center gap-1.5 glass hover:bg-white/10 px-3 py-1.5 rounded-xl border border-white/5 transition-colors"
+          title={t('ai_clear_chat', 'مسح المحادثة')}
         >
-          <Trash2 size={13} /> <span>مسح المحادثة</span>
+          <Trash2 size={13} />
+          <span className="hidden sm:inline">{t('ai_clear_chat', 'مسح المحادثة')}</span>
         </button>
       </div>
 
-      {/* Suggested Quick Prompts */}
+      {/* Suggested Quick Prompt Pills */}
       <div className="flex gap-2 overflow-x-auto pb-2 mb-2 scrollbar-none px-1">
-        {SUGGESTED_QUESTIONS.map((q, idx) => (
+        {suggestedPrompts.map((q, idx) => (
           <button
             key={idx}
-            onClick={() => handleSend(q)}
+            onClick={() => handleSend(q.prompt)}
             disabled={loading}
-            className="text-xs whitespace-nowrap px-3 py-1.5 rounded-full glass hover:bg-white/10 text-[var(--subtle)] hover:text-white border border-white/5 transition-all shrink-0"
+            className="text-xs whitespace-nowrap px-3 py-1.5 rounded-full glass hover:bg-white/10 text-[var(--subtle)] hover:text-white border border-white/5 transition-all shrink-0 hover:border-[#6ee7b7]/30"
           >
-            {q}
+            {q.label}
           </button>
         ))}
       </div>
 
       {/* Chat Messages Area */}
-      <div className="flex-1 overflow-y-auto glass p-4 md:p-6 mb-3 flex flex-col gap-4 rounded-[2rem] relative shadow-inner border border-white/5">
+      <div className="flex-1 overflow-y-auto glass p-3 md:p-6 mb-3 flex flex-col gap-4 rounded-[2rem] relative shadow-inner border border-white/5">
         <AnimatePresence>
-          {messages.map((m) => (
-            <motion.div 
-              key={m.id} 
-              initial={{ opacity: 0, scale: 0.96, y: 10 }} 
-              animate={{ opacity: 1, scale: 1, y: 0 }} 
-              exit={{ opacity: 0, scale: 0.9 }}
-              className={`group relative max-w-[85%] p-4 md:p-5 rounded-3xl text-sm leading-relaxed shadow-md ${
-                m.role === 'model' || m.role === 'assistant'
-                  ? 'self-start bg-[rgba(255,255,255,0.03)] border border-white/[0.08] rounded-tl-none text-white' 
-                  : 'self-end bg-gradient-to-br from-[#34d399] to-[#059669] text-[#0a1424] font-medium rounded-tr-none shadow-lg'
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1.5 text-[10px] font-bold opacity-60">
-                {m.role === 'model' || m.role === 'assistant' ? (
-                  <>
-                    <Bot size={12} className="text-[#6ee7b7]" />
-                    <span>Zen AI</span>
-                  </>
-                ) : (
-                  <>
-                    <User size={12} />
-                    <span>{profile?.username || 'أنت'}</span>
-                  </>
-                )}
-              </div>
+          {messages.map((m) => {
+            const isModel = m.role === 'model' || m.role === 'assistant'
+            const { cleanText, actions } = isModel ? parseActionsFromText(m.text || m.content || '') : { cleanText: m.text || '', actions: [] }
 
-              <ReactMarkdown className="prose prose-invert prose-sm max-w-none text-xs md:text-sm leading-relaxed">
-                {m.text || m.content || ''}
-              </ReactMarkdown>
-              
-              <button 
-                onClick={() => deleteMessage(m.id)}
-                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#161b27] text-[var(--muted)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white border border-white/10 shadow-lg"
-                title="حذف الرسالة"
+            return (
+              <motion.div 
+                key={m.id} 
+                initial={{ opacity: 0, scale: 0.96, y: 10 }} 
+                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                exit={{ opacity: 0, scale: 0.9 }}
+                className={`group relative max-w-[90%] md:max-w-[85%] p-4 md:p-5 rounded-3xl text-sm leading-relaxed shadow-md ${
+                  isModel
+                    ? 'self-start bg-[rgba(255,255,255,0.03)] border border-white/[0.08] rounded-tl-none text-white' 
+                    : 'self-end bg-gradient-to-br from-[#34d399] to-[#059669] text-[#0a1424] font-medium rounded-tr-none shadow-lg'
+                }`}
               >
-                <X size={12} />
-              </button>
-            </motion.div>
-          ))}
+                {/* Message Header */}
+                <div className="flex items-center justify-between mb-2 text-[10px] font-bold opacity-75">
+                  <div className="flex items-center gap-1.5">
+                    {isModel ? (
+                      <>
+                        <Bot size={13} className="text-[#6ee7b7]" />
+                        <span>Zen AI</span>
+                      </>
+                    ) : (
+                      <>
+                        <User size={13} />
+                        <span>{profile?.username || 'أنت'}</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Actions on AI Message: Copy + Save to Journal */}
+                  {isModel && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleCopyMessage(m.id, cleanText)}
+                        className="p-1 rounded-lg hover:bg-white/10 text-[var(--muted)] hover:text-white transition-colors"
+                        title={t('common_copy', 'نسخ')}
+                      >
+                        {copiedId === m.id ? <Check size={12} className="text-[#6ee7b7]" /> : <Copy size={12} />}
+                      </button>
+                      <button
+                        onClick={() => handleSaveToJournal(m.id, cleanText)}
+                        className="p-1 rounded-lg hover:bg-white/10 text-[var(--muted)] hover:text-[#6ee7b7] transition-colors"
+                        title={t('ai_save_to_journal', 'حفظ كفكرة في المذكرة')}
+                      >
+                        {savedJournalId === m.id ? <Check size={12} className="text-[#6ee7b7]" /> : <BookPlus size={12} />}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Message Content with Custom Table & Markdown Renderers */}
+                <div className="prose prose-invert prose-sm max-w-none text-xs md:text-sm leading-relaxed overflow-x-auto">
+                  <ReactMarkdown
+                    components={{
+                      table: ({ node, ...props }) => (
+                        <div className="my-3 overflow-x-auto rounded-2xl border border-white/10 bg-black/20 shadow-md">
+                          <table className="w-full text-xs text-start border-collapse" {...props} />
+                        </div>
+                      ),
+                      thead: ({ node, ...props }) => (
+                        <thead className="bg-[#6ee7b7]/15 text-[#6ee7b7] font-bold border-b border-white/10" {...props} />
+                      ),
+                      th: ({ node, ...props }) => (
+                        <th className="px-3.5 py-2.5 text-start font-bold border-x border-white/5 whitespace-nowrap" {...props} />
+                      ),
+                      td: ({ node, ...props }) => (
+                        <td className="px-3.5 py-2 border-t border-white/5 border-x border-white/5 text-[var(--text)]" {...props} />
+                      ),
+                      tr: ({ node, ...props }) => (
+                        <tr className="hover:bg-white/[0.03] transition-colors" {...props} />
+                      )
+                    }}
+                  >
+                    {cleanText}
+                  </ReactMarkdown>
+                </div>
+
+                {/* Interactive Action Buttons Generated by AI */}
+                {actions.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5">
+                    <p className="text-[10px] font-bold text-[#6ee7b7] flex items-center gap-1">
+                      <Sparkles size={11} />
+                      <span>{t('ai_actions_header', 'إجراءات وأدوات مقترحة:')}</span>
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {actions.map((act, aIdx) => (
+                        <button
+                          key={aIdx}
+                          onClick={() => handleActionClick(act)}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#6ee7b7]/20 hover:bg-[#6ee7b7]/30 text-[#6ee7b7] border border-[#6ee7b7]/40 flex items-center gap-1.5 transition-all shadow-sm hover:scale-[1.02]"
+                        >
+                          <span>{act.label}</span>
+                          <ExternalLink size={11} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Delete Message Button */}
+                <button 
+                  onClick={() => deleteMessage(m.id)}
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#161b27] text-[var(--muted)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white border border-white/10 shadow-lg"
+                  title="حذف الرسالة"
+                >
+                  <X size={12} />
+                </button>
+              </motion.div>
+            )
+          })}
         </AnimatePresence>
         
         {loading && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="self-start flex items-center gap-2 p-3 glass rounded-2xl border border-white/5">
             <Bot size={16} className="text-[#6ee7b7] animate-pulse" />
-            <span className="text-xs text-[var(--subtle)]">Zen AI يكتب الرد...</span>
+            <span className="text-xs text-[var(--subtle)]">{t('ai_typing', 'Zen AI يكتب الرد...')}</span>
             <div className="flex gap-1">
               <span className="w-1.5 h-1.5 bg-[#6ee7b7] rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
               <span className="w-1.5 h-1.5 bg-[#6ee7b7] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
@@ -197,7 +370,7 @@ export default function GeneralAI() {
       <div className="relative">
         <input 
           type="text" 
-          placeholder="اكتب رسالتك لـ Zen AI (دارجة، عربية، إنجليزية، فرنسية)..." 
+          placeholder={t('ai_placeholder', 'اكتب رسالتك لـ Zen AI (دارجة، عربية، إنجليزية، فرنسية)...')} 
           className="zen-input pr-4 pl-32 py-4 text-sm shadow-xl rounded-2xl border-white/5 bg-white/[0.03] focus:bg-white/[0.06] transition-all"
           value={input} 
           onChange={e => setInput(e.target.value)} 
@@ -208,7 +381,7 @@ export default function GeneralAI() {
           disabled={loading || !input.trim()} 
           className="absolute left-2 top-1/2 -translate-y-1/2 btn-zen px-5 py-2.5 shadow-lg font-bold text-xs disabled:opacity-20 transition-all flex items-center gap-1.5"
         >
-          {loading ? '...' : <><Send size={14} /> <span>إرسال</span></>}
+          {loading ? '...' : <><Send size={14} /> <span>{t('common_send', 'إرسال')}</span></>}
         </button>
       </div>
 
@@ -221,17 +394,17 @@ export default function GeneralAI() {
               className="glass p-8 rounded-3xl max-w-sm w-full text-center border border-white/10 shadow-2xl"
             >
               <AlertCircle size={40} className="mx-auto mb-3 text-red-400" />
-              <h2 className="text-xl font-bold mb-2 text-white">مسح المحادثة؟</h2>
+              <h2 className="text-xl font-bold mb-2 text-white">{t('ai_clear_chat', 'مسح المحادثة؟')}</h2>
               <p className="text-xs text-[var(--muted)] mb-6 leading-relaxed">
                 سيتم مسح سجل المحادثة بالكامل وإعادة ضبطها من البداية.
               </p>
               
               <div className="flex gap-3">
                 <button onClick={doClearChat} className="flex-1 py-3 bg-red-500 rounded-xl text-xs font-bold text-white hover:bg-red-600 transition-colors shadow-lg">
-                  مسح الكل
+                  {t('common_clear', 'مسح الكل')}
                 </button>
                 <button onClick={() => setShowConfirm(false)} className="btn-ghost flex-1 py-3 text-xs">
-                  تراجع
+                  {t('common_cancel', 'تراجع')}
                 </button>
               </div>
             </motion.div>

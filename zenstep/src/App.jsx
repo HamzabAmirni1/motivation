@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { LanguageProvider, useLanguage } from './contexts/LanguageContext'
 import Auth from './components/Auth'
 import Navbar from './components/Navbar'
 import Dashboard from './components/Dashboard'
@@ -23,13 +24,32 @@ const pageVariants = {
   exit:    { opacity: 0, y: -16, transition: { duration: 0.25 } },
 }
 
+const ADMIN_EMAILS = [
+  'amirnihamza61@gmail.com',
+  'hamza.amirni@gmail.com',
+  'hamzaamirni451@gmail.com'
+]
+
+function isAdminUser(user, profile) {
+  const email = (user?.email || '').toLowerCase().trim()
+  return profile?.role === 'admin' || ADMIN_EMAILS.includes(email)
+}
+
 function AppContent() {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
+  const { dir, t } = useLanguage()
   const [page, setPage] = useState(() => localStorage.getItem('zs_active_page') || 'dashboard')
 
   useEffect(() => {
     localStorage.setItem('zs_active_page', page)
   }, [page])
+
+  useEffect(() => {
+    // If a non-admin is trying to access the admin page, redirect safely to dashboard
+    if (page === 'admin' && !isAdminUser(user, profile)) {
+      setPage('dashboard')
+    }
+  }, [page, user, profile])
 
   if (loading) {
     return (
@@ -37,7 +57,7 @@ function AppContent() {
         <div className="text-center">
           <div className="text-5xl mb-4 animate-bounce">🌱</div>
           <p className="gradient-text font-bold text-xl">ZenStep</p>
-          <p style={{ color: 'var(--muted)' }} className="text-sm mt-1">كنحمّلو بياناتك...</p>
+          <p style={{ color: 'var(--muted)' }} className="text-sm mt-1">{t('common_loading', 'كنحمّلو بياناتك...')}</p>
         </div>
       </div>
     )
@@ -46,7 +66,7 @@ function AppContent() {
   if (!user) return <Auth />
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen transition-all duration-300" style={{ background: 'var(--bg)' }} dir={dir}>
       {/* Ambient background glowing blobs */}
       <div className="blob w-[700px] h-[700px]" style={{ top: '-20%', left: '-15%', background: 'rgba(110,231,183,0.05)' }} />
       <div className="blob w-[600px] h-[600px]" style={{ animationDelay: '3s', bottom: '-15%', right: '-15%', background: 'rgba(167,139,250,0.05)' }} />
@@ -75,7 +95,7 @@ function AppContent() {
           )}
           {page === 'zenbot' && (
             <motion.div key="zenbot" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="h-full">
-              <GeneralAI />
+              <GeneralAI setPage={setPage} />
             </motion.div>
           )}
           {page === 'tools' && (
@@ -122,7 +142,9 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <LanguageProvider>
+        <AppContent />
+      </LanguageProvider>
     </AuthProvider>
   )
 }

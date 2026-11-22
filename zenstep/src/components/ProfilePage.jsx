@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { User, Shield, Bell, Volume2, Globe, Key, Download, Trash2, Trophy, Flame, Sparkles, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import { calculateLevel, ACHIEVEMENTS } from '../lib/gamification'
 import { supabase } from '../lib/supabase'
 import { renderAvatarContent } from './Navbar'
@@ -14,6 +15,7 @@ function isImageUrl(url) {
 
 export default function ProfilePage() {
   const { user, profile, saveProfile, signOut } = useAuth()
+  const { lang, setLang, t, languages } = useLanguage()
   const xp = profile?.xp || 0
   const lv = calculateLevel(xp)
   const streak = profile?.streak_count || 0
@@ -31,7 +33,7 @@ export default function ProfilePage() {
 
   const [username, setUsername] = useState(profile?.username || '')
   const [selectedAvatar, setSelectedAvatar] = useState(getCleanInitialAvatar)
-  const [language, setLanguage] = useState(profile?.language || 'ar')
+  const [language, setLanguage] = useState(lang || profile?.language || 'ar')
   const [notifEnabled, setNotifEnabled] = useState(profile?.settings?.notifications ?? true)
   const [soundEnabled, setSoundEnabled] = useState(profile?.settings?.sounds ?? true)
   const [savedMsg, setSavedMsg] = useState('')
@@ -47,6 +49,7 @@ export default function ProfilePage() {
   })()
 
   const handleSaveProfile = () => {
+    setLang(language)
     saveProfile({
       ...profile,
       username: username.trim() || profile.username,
@@ -58,7 +61,7 @@ export default function ProfilePage() {
         sounds: soundEnabled
       }
     })
-    setSavedMsg('تم حفظ التغييرات بنجاح ✓')
+    setSavedMsg(t('common_saved', 'تم حفظ التغييرات بنجاح ✓'))
     setTimeout(() => setSavedMsg(''), 2500)
   }
 
@@ -228,23 +231,22 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[var(--subtle)] mb-1.5">لغة التطبيق</label>
-            <div className="flex gap-2">
-              {[
-                { id: 'ar', label: 'العربية' },
-                { id: 'darija', label: 'الدارجة المغربية' },
-                { id: 'fr', label: 'Français' },
-                { id: 'en', label: 'English' }
-              ].map(lang => (
+            <label className="block text-xs font-bold text-[var(--subtle)] mb-1.5">{t('profile_language', 'لغة المنصة')}</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {languages.map(l => (
                 <button
-                  key={lang.id}
+                  key={l.code}
                   type="button"
-                  onClick={() => setLanguage(lang.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    language === lang.id ? 'bg-[#6ee7b7] text-black shadow-md' : 'glass text-[var(--subtle)]'
+                  onClick={() => {
+                    setLanguage(l.code)
+                    setLang(l.code)
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    language === l.code ? 'bg-[#6ee7b7] text-black shadow-md' : 'glass text-[var(--subtle)] hover:text-white'
                   }`}
                 >
-                  {lang.label}
+                  <span>{l.flag}</span>
+                  <span>{l.name}</span>
                 </button>
               ))}
             </div>
