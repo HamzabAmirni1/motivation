@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage } from '../contexts/LanguageContext'
 import BreathSync from './BreathSync'
@@ -10,8 +10,12 @@ import SleepRoutine from './tools/SleepRoutine'
 
 export default function ToolsPage() {
   const { t } = useLanguage()
-  const [open, setOpen] = useState('breath')
+  const [open, setOpen] = useState(() => localStorage.getItem('zs_active_tool') || 'breath')
   const [xpMsg, setXpMsg] = useState('')
+
+  useEffect(() => {
+    localStorage.setItem('zs_active_tool', open)
+  }, [open])
 
   const tools = [
     { id: 'breath',    label: t('tool_breath_title', 'Breathe-Sync'), icon: '🌬️', desc: t('tool_breath_desc'), color: '#6ee7b7' },

@@ -10,6 +10,89 @@ import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { askZenAI } from '../services/aiService'
 
+// Detect if text is predominantly Arabic/Darija (RTL) or Latin/French/English (LTR)
+export function detectTextDir(text) {
+  if (!text || typeof text !== 'string') return 'rtl'
+  // Remove markdown formatting, digits, spaces, emojis, punctuation
+  const clean = text.replace(/[\p{Emoji}\p{Symbol}\p{Punctuation}\d\s#*_`~>|[\]()\-:]/gu, '')
+  if (!clean) return 'rtl'
+  const arabicMatch = clean.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g) || []
+  const latinMatch = clean.match(/[A-Za-z\u00C0-\u024F]/g) || []
+  return arabicMatch.length >= latinMatch.length ? 'rtl' : 'ltr'
+}
+
+// Split text into pure markdown prose and table blocks
+function parseMarkdownTables(text) {
+  if (!text || typeof text !== 'string') return []
+  // Matches markdown tables: | a | b |\n|---|---|\n| c | d |
+  const tableRegex = /(?:(?:^|\n)(?:\|[^\n]+\|\r?\n)(?:\|(?:\s*[:-]+[-| :]*\s*)\|\r?\n)(?:\|[^\n]+\|\r?\n?)+)/g
+
+  const segments = []
+  let lastIndex = 0
+  let match
+
+  while ((match = tableRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ type: 'text', content: text.substring(lastIndex, match.index) })
+    }
+    segments.push({ type: 'table', content: match[0].trim() })
+    lastIndex = match.index + match[0].length
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({ type: 'text', content: text.substring(lastIndex) })
+  }
+
+  return segments.length > 0 ? segments : [{ type: 'text', content: text }]
+}
+
+// Render custom responsive high-end Markdown Table
+function renderCustomTable(tableText, tableDir = 'rtl') {
+  const lines = tableText.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+  if (lines.length < 2) return <pre className="text-xs">{tableText}</pre>
+
+  const parseCells = (line) => {
+    return line
+      .replace(/^\|/, '')
+      .replace(/\|$/, '')
+      .split('|')
+      .map(c => c.trim())
+  }
+
+  const headers = parseCells(lines[0])
+  const rows = lines.slice(2).map(parseCells)
+
+  return (
+    <div className="my-3 overflow-x-auto rounded-2xl border border-white/10 bg-black/40 shadow-xl" dir={tableDir}>
+      <table className="w-full text-xs border-collapse min-w-[280px]">
+        <thead>
+          <tr className="bg-[#6ee7b7]/15 text-[#6ee7b7] font-bold border-b border-white/10">
+            {headers.map((h, i) => (
+              <th key={i} className="px-3.5 py-3 text-start border-x border-white/5 font-black whitespace-nowrap">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, rIdx) => (
+            <tr
+              key={rIdx}
+              className="border-b border-white/5 last:border-b-0 hover:bg-white/[0.04] transition-colors"
+            >
+              {row.map((cell, cIdx) => (
+                <td key={cIdx} className="px-3.5 py-2.5 border-x border-white/5 text-[var(--text)]">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 // Parse [ACTION:TYPE:LABEL] tags from AI text
 function parseActionsFromText(rawText) {
   if (!rawText || typeof rawText !== 'string') return { cleanText: '', actions: [] }
@@ -63,10 +146,10 @@ export default function GeneralAI({ setPage }) {
 
   // Suggested Prompts with quick table & button generation
   const suggestedPrompts = [
-    { label: '📊 جدول تنظيم اليوم ومحاربة التوتر', prompt: 'صاوب ليا جدول زمني متوازن لتنظيم اليوم وتخفيف التوتر مع تمارين الراحة (Markdown Table)' },
-    { label: '📋 جدول تفكيك الأفكار السلبية (CBT)', prompt: 'قاد ليا جدول 4 أعمدة بتقنية CBT لتفكيك الأفكار المشوهة وإعادة صياغتها (Markdown Table)' },
+    { label: '📊 جدول تنظيم اليوم ومحاربة التوتر', prompt: 'صاوب ليا جدول زمني منظم بـ Markdown Table (جدول فيه أعمدة: الوقت | النشاط | الفائدة) لتنظيم اليوم وتخفيف التوتر مع تمارين الراحة' },
+    { label: '📋 جدول تفكيك الأفكار السلبية (CBT)', prompt: 'قاد ليا جدول 4 أعمدة منسق بـ Markdown Table بتقنية CBT لتفكيك الأفكار المشوهة (الموقف | الفكرة التلقائية | الفحص الواقعي | الفكرة المتوازنة)' },
     { label: '🌬️ تمرين تنفس مهدئ دابا', prompt: 'عطيني تمرين تنفس مهدئ دابا مع الخطوات بدقة' },
-    { label: '🎯 جدول العادات اليومية الإيجابية', prompt: 'اقترح ليا جدول عادات يومية أسبوعي لتعزيز طاقتي وراحتي النفسية (Markdown Table)' },
+    { label: '🎯 جدول العادات اليومية الإيجابية', prompt: 'اقترح ليا جدول عادات يومية أسبوعي منسق بـ Markdown Table لتعزيز طاقتي وراحتي النفسية' },
     { label: '🌙 المساعدة على النعاس والراحة', prompt: 'حاس بالأرق وصعوبة النعاس، شنو الخطوات اللي ندير دابا باش نرتاح؟' },
   ]
 
@@ -240,6 +323,8 @@ export default function GeneralAI({ setPage }) {
           {messages.map((m) => {
             const isModel = m.role === 'model' || m.role === 'assistant'
             const { cleanText, actions } = isModel ? parseActionsFromText(m.text || m.content || '') : { cleanText: m.text || '', actions: [] }
+            const messageDir = detectTextDir(cleanText)
+            const segments = parseMarkdownTables(cleanText)
 
             return (
               <motion.div 
@@ -247,7 +332,10 @@ export default function GeneralAI({ setPage }) {
                 initial={{ opacity: 0, scale: 0.96, y: 10 }} 
                 animate={{ opacity: 1, scale: 1, y: 0 }} 
                 exit={{ opacity: 0, scale: 0.9 }}
+                dir={messageDir}
                 className={`group relative max-w-[90%] md:max-w-[85%] p-4 md:p-5 rounded-3xl text-sm leading-relaxed shadow-md ${
+                  messageDir === 'rtl' ? 'text-right' : 'text-left'
+                } ${
                   isModel
                     ? 'self-start bg-[rgba(255,255,255,0.03)] border border-white/[0.08] rounded-tl-none text-white' 
                     : 'self-end bg-gradient-to-br from-[#34d399] to-[#059669] text-[#0a1424] font-medium rounded-tr-none shadow-lg'
@@ -291,30 +379,17 @@ export default function GeneralAI({ setPage }) {
                 </div>
 
                 {/* Message Content with Custom Table & Markdown Renderers */}
-                <div className="prose prose-invert prose-sm max-w-none text-xs md:text-sm leading-relaxed overflow-x-auto">
-                  <ReactMarkdown
-                    components={{
-                      table: ({ node, ...props }) => (
-                        <div className="my-3 overflow-x-auto rounded-2xl border border-white/10 bg-black/20 shadow-md">
-                          <table className="w-full text-xs text-start border-collapse" {...props} />
-                        </div>
-                      ),
-                      thead: ({ node, ...props }) => (
-                        <thead className="bg-[#6ee7b7]/15 text-[#6ee7b7] font-bold border-b border-white/10" {...props} />
-                      ),
-                      th: ({ node, ...props }) => (
-                        <th className="px-3.5 py-2.5 text-start font-bold border-x border-white/5 whitespace-nowrap" {...props} />
-                      ),
-                      td: ({ node, ...props }) => (
-                        <td className="px-3.5 py-2 border-t border-white/5 border-x border-white/5 text-[var(--text)]" {...props} />
-                      ),
-                      tr: ({ node, ...props }) => (
-                        <tr className="hover:bg-white/[0.03] transition-colors" {...props} />
-                      )
-                    }}
-                  >
-                    {cleanText}
-                  </ReactMarkdown>
+                <div className="prose prose-invert prose-sm max-w-none text-xs md:text-sm leading-relaxed overflow-x-auto space-y-2">
+                  {segments.map((seg, sIdx) => {
+                    if (seg.type === 'table') {
+                      return <div key={sIdx}>{renderCustomTable(seg.content, messageDir)}</div>
+                    }
+                    return (
+                      <ReactMarkdown key={sIdx}>
+                        {seg.content}
+                      </ReactMarkdown>
+                    )
+                  })}
                 </div>
 
                 {/* Interactive Action Buttons Generated by AI */}

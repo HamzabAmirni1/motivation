@@ -42,7 +42,11 @@ export default function CommunityPage() {
   const isAdmin = isUserAdmin(user, profile)
 
   // Active Tab: 'global' | 'private' | 'mod'
-  const [activeTab, setActiveTab] = useState('global')
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('zs_comm_tab') || 'global')
+
+  useEffect(() => {
+    localStorage.setItem('zs_comm_tab', activeTab)
+  }, [activeTab])
 
   // ─────────────────────────────────────────────────────────────
   // GLOBAL CHAT STATE

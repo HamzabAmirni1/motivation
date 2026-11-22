@@ -31,6 +31,28 @@ const ADMIN_EMAILS = [
   'hamzaamirni451@gmail.com'
 ]
 
+const VALID_PAGES = [
+  'dashboard', 'mood', 'journal', 'tools', 'zenbot',
+  'community', 'sounds', 'habits', 'games', 'profile', 'admin', 'developer'
+]
+
+function getInitialPage() {
+  if (typeof window === 'undefined') return 'dashboard'
+  // 1. Try URL hash first (e.g. #community, #zenbot)
+  const hash = window.location.hash.replace(/^#\/?/, '').trim()
+  if (hash && VALID_PAGES.includes(hash)) {
+    return hash
+  }
+  // 2. Try localStorage
+  try {
+    const saved = localStorage.getItem('zs_active_page')
+    if (saved && VALID_PAGES.includes(saved)) {
+      return saved
+    }
+  } catch (e) {}
+  return 'dashboard'
+}
+
 function isAdminUser(user, profile) {
   const email = (user?.email || '').toLowerCase().trim()
   return profile?.role === 'admin' || ADMIN_EMAILS.includes(email)
@@ -39,10 +61,24 @@ function isAdminUser(user, profile) {
 function AppContent() {
   const { user, profile, loading } = useAuth()
   const { dir, t } = useLanguage()
-  const [page, setPage] = useState(() => localStorage.getItem('zs_active_page') || 'dashboard')
+  const [page, setPage] = useState(getInitialPage)
 
   useEffect(() => {
     localStorage.setItem('zs_active_page', page)
+    if (window.location.hash !== `#${page}`) {
+      window.history.replaceState(null, '', `#${page}`)
+    }
+  }, [page])
+
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash.replace(/^#\/?/, '').trim()
+      if (hash && VALID_PAGES.includes(hash) && hash !== page) {
+        setPage(hash)
+      }
+    }
+    window.addEventListener('hashchange', handleHash)
+    return () => window.removeEventListener('hashchange', handleHash)
   }, [page])
 
   useEffect(() => {
