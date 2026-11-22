@@ -769,10 +769,10 @@ export default function CommunityPage() {
             </div>
           )}
 
-          {/* Message Composer Bar */}
+          {/* Message Composer Bar (Mobile-friendly WhatsApp layout) */}
           <form
             onSubmit={handleSendGlobal}
-            className="p-3 md:p-4 bg-black/30 border-t border-white/5 flex items-center gap-2"
+            className="p-2 sm:p-3 md:p-4 bg-black/40 border-t border-white/5 flex items-center gap-1.5 sm:gap-2 relative z-10"
           >
             {/* Hidden file input */}
             <input
@@ -786,36 +786,43 @@ export default function CommunityPage() {
             <button
               type="button"
               onClick={() => setShowEmojiPicker(v => !v)}
-              className="p-2.5 rounded-xl text-[var(--muted)] hover:text-[#fcd34d] hover:bg-white/[0.04] transition-colors"
+              className="p-2 sm:p-2.5 rounded-xl text-[var(--muted)] hover:text-[#fcd34d] hover:bg-white/[0.04] transition-colors shrink-0"
               title="إيموجي"
             >
-              <Smile size={18} />
+              <Smile size={19} />
             </button>
 
             <button
               type="button"
               disabled={uploadingImage}
               onClick={() => fileInputRef.current?.click()}
-              className="p-2.5 rounded-xl text-[var(--muted)] hover:text-[#7dd3fc] hover:bg-white/[0.04] transition-colors"
+              className="p-2 sm:p-2.5 rounded-xl text-[var(--muted)] hover:text-[#7dd3fc] hover:bg-white/[0.04] transition-colors shrink-0"
               title="إرفاق صورة"
             >
-              <ImageIcon size={18} />
+              <ImageIcon size={19} />
             </button>
 
-            <input
-              type="text"
-              value={inputContent}
-              onChange={e => setInputContent(e.target.value)}
-              placeholder={t('comm_write_placeholder', 'اكتب رسالتك للمجتمع بكل احترام ولطف...')}
-              className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-4 py-2.5 text-sm text-white placeholder-[var(--muted)] focus:outline-none focus:border-[#6ee7b7]/50"
-            />
+            <div className="flex-1 min-w-0">
+              <input
+                type="text"
+                value={inputContent}
+                onChange={e => setInputContent(e.target.value)}
+                placeholder={t('comm_write_placeholder', 'اكتب رسالتك للمجتمع بكل احترام ولطف...')}
+                className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-[var(--muted)] focus:outline-none focus:border-[#6ee7b7]/50 transition-all"
+              />
+            </div>
 
             <button
               type="submit"
               disabled={!inputContent.trim() && !imagePreview}
-              className="btn-zen p-2.5 px-4 font-bold rounded-2xl flex items-center gap-1.5 shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-10 h-10 sm:w-auto sm:h-auto sm:px-4 sm:py-2.5 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shrink-0 transition-transform active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{
+                background: 'linear-gradient(135deg, #6ee7b7, #34d399)',
+                color: '#0d1117'
+              }}
+              title={t('comm_send', 'إرسال')}
             >
-              <Send size={16} />
+              <Send size={16} className={dir === 'rtl' ? 'rotate-180' : ''} />
               <span className="hidden sm:inline">{t('comm_send', 'إرسال')}</span>
             </button>
           </form>
@@ -947,16 +954,22 @@ export default function CommunityPage() {
                     </div>
 
                     {/* Admin Reply Composer */}
-                    <form onSubmit={handleSendPrivate} className="p-3 border-t border-white/5 flex items-center gap-2 bg-black/40">
-                      <input
-                        type="text"
-                        value={privateInput}
-                        onChange={e => setPrivateInput(e.target.value)}
-                        placeholder="الرد على هذا العضو بسرية..."
-                        className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#a78bfa]"
-                      />
-                      <button type="submit" className="btn-zen px-4 py-2 text-xs font-bold rounded-2xl">
-                        رد
+                    <form onSubmit={handleSendPrivate} className="p-2 sm:p-3 border-t border-white/5 flex items-center gap-1.5 sm:gap-2 bg-black/40">
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={privateInput}
+                          onChange={e => setPrivateInput(e.target.value)}
+                          placeholder="الرد على هذا العضو بسرية..."
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#a78bfa] transition-all"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 text-xs font-bold rounded-2xl bg-[#a78bfa] text-[#0d1117] hover:bg-[#c4b5fd] flex items-center gap-1 shrink-0 shadow-md transition-all active:scale-95"
+                      >
+                        <Send size={14} className={dir === 'rtl' ? 'rotate-180' : ''} />
+                        <span>رد</span>
                       </button>
                     </form>
                   </>
@@ -1036,7 +1049,7 @@ export default function CommunityPage() {
               )}
 
               {/* Composer */}
-              <form onSubmit={handleSendPrivate} className="p-3 md:p-4 bg-black/40 border-t border-white/5 flex items-center gap-2">
+              <form onSubmit={handleSendPrivate} className="p-2 sm:p-3 md:p-4 bg-black/40 border-t border-white/5 flex items-center gap-1.5 sm:gap-2">
                 <input
                   type="file"
                   ref={privateFileInputRef}
@@ -1048,27 +1061,34 @@ export default function CommunityPage() {
                 <button
                   type="button"
                   onClick={() => privateFileInputRef.current?.click()}
-                  className="p-2.5 rounded-xl text-[var(--muted)] hover:text-[#a78bfa] transition-colors"
+                  className="p-2 sm:p-2.5 rounded-xl text-[var(--muted)] hover:text-[#a78bfa] transition-colors shrink-0"
                   title="إرفاق صورة خاصة"
                 >
-                  <ImageIcon size={18} />
+                  <ImageIcon size={19} />
                 </button>
 
-                <input
-                  type="text"
-                  value={privateInput}
-                  onChange={e => setPrivateInput(e.target.value)}
-                  placeholder={t('comm_private_placeholder', 'اكتب رسالتك الخاصة للإدارة...')}
-                  className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-[var(--muted)] focus:outline-none focus:border-[#a78bfa]"
-                />
+                <div className="flex-1 min-w-0">
+                  <input
+                    type="text"
+                    value={privateInput}
+                    onChange={e => setPrivateInput(e.target.value)}
+                    placeholder={t('comm_private_placeholder', 'اكتب رسالتك الخاصة للإدارة...')}
+                    className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-3.5 py-2.5 text-xs text-white placeholder-[var(--muted)] focus:outline-none focus:border-[#a78bfa] transition-all"
+                  />
+                </div>
 
                 <button
                   type="submit"
                   disabled={!privateInput.trim() && !privateImagePreview}
-                  className="btn-zen px-5 py-2.5 text-xs font-bold rounded-2xl flex items-center gap-1.5 shadow-md"
+                  className="w-10 h-10 sm:w-auto sm:h-auto sm:px-4 sm:py-2.5 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shrink-0 transition-transform active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                  style={{
+                    background: 'linear-gradient(135deg, #a78bfa, #818cf8)',
+                    color: '#0d1117'
+                  }}
+                  title={t('comm_send', 'إرسال')}
                 >
-                  <Send size={15} />
-                  <span>إرسال</span>
+                  <Send size={15} className={dir === 'rtl' ? 'rotate-180' : ''} />
+                  <span className="hidden sm:inline">إرسال</span>
                 </button>
               </form>
             </div>

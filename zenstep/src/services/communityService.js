@@ -627,23 +627,44 @@ export function subscribeToCommunityEvents(callback) {
   if (typeof window === 'undefined') return () => {}
 
   // 1. Supabase Realtime Channel
+  const channelName = 'zenstep-community-live-' + Math.random().toString(36).slice(2, 7)
   const channel = supabase
-    .channel('zenstep-community-global')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'global_chat_messages' }, payload => {
-      callback({ type: 'global_chat_change', payload })
+    .channel(channelName)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'global_chat_messages' }, payload => {
+      if (payload.new && payload.new.moderation_status !== 'hidden') {
+        callback({ type: 'new_global_message', payload: payload.new })
+      }
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'global_chat_messages' }, payload => {
+      if (payload.new) {
+        callback({ type: 'message_updated', payload: payload.new })
+      }
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'global_chat_messages' }, payload => {
+      if (payload.old) {
+        callback({ type: 'message_deleted', payload: payload.old })
+      }
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_pinned_messages' }, payload => {
-      callback({ type: 'pinned_message_change', payload })
+      if (payload.new) {
+        callback({ type: 'pinned_changed', payload: payload.new })
+      }
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_private_messages' }, payload => {
-      callback({ type: 'private_message_change', payload })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_private_messages' }, payload => {
+      if (payload.new) {
+        callback({ type: 'new_private_message', payload: payload.new })
+      }
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'global_chat_reactions' }, payload => {
-      callback({ type: 'reactions_change', payload })
+      callback({ type: 'reaction_updated', payload: payload.new || payload.old })
     })
-    .subscribe()
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('ZenStep Realtime Chat Connected ✓')
+      }
+    })
 
-  // 2. Custom local window events (instant cross-component reactivity)
+  // 2. Custom local window events (instant cross-component reactivity in same browser)
   const handleLocal = (e) => {
     callback({ type: e.type.replace('zenstep_community_', ''), payload: e.detail })
   }
@@ -660,8 +681,26 @@ export function subscribeToCommunityEvents(callback) {
 
   events.forEach(evt => window.addEventListener(evt, handleLocal))
 
+  // 3. Fast auto-sync poll (every 2.5s) like WhatsApp Web live sync
+  const liveSyncInterval = setInterval(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('global_chat_messages')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(15)
+
+      if (!error && data && data.length > 0) {
+        data.reverse().forEach(row => {
+          callback({ type: 'new_global_message', payload: row })
+        })
+      }
+    } catch (err) {}
+  }, 2500)
+
   return () => {
     supabase.removeChannel(channel)
     events.forEach(evt => window.removeEventListener(evt, handleLocal))
+    clearInterval(liveSyncInterval)
   }
 }
