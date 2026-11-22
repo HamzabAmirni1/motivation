@@ -36,8 +36,24 @@ const VALID_PAGES = [
   'community', 'sounds', 'habits', 'games', 'profile', 'admin', 'developer'
 ]
 
+function isAuthCallback() {
+  if (typeof window === 'undefined') return false
+  const h = window.location.hash || ''
+  const s = window.location.search || ''
+  return (
+    h.includes('access_token') ||
+    h.includes('refresh_token') ||
+    h.includes('error') ||
+    h.includes('type=') ||
+    s.includes('code=') ||
+    s.includes('error=')
+  )
+}
+
 function getInitialPage() {
   if (typeof window === 'undefined') return 'dashboard'
+  // If an OAuth callback is in progress, default to dashboard and do not touch URL
+  if (isAuthCallback()) return 'dashboard'
   // 1. Try URL hash first (e.g. #community, #zenbot)
   const hash = window.location.hash.replace(/^#\/?/, '').trim()
   if (hash && VALID_PAGES.includes(hash)) {
@@ -64,6 +80,9 @@ function AppContent() {
   const [page, setPage] = useState(getInitialPage)
 
   useEffect(() => {
+    // CRITICAL: Never touch or overwrite URL while OAuth tokens are present!
+    if (isAuthCallback()) return
+
     localStorage.setItem('zs_active_page', page)
     if (window.location.hash !== `#${page}`) {
       window.history.replaceState(null, '', `#${page}`)
@@ -72,6 +91,7 @@ function AppContent() {
 
   useEffect(() => {
     const handleHash = () => {
+      if (isAuthCallback()) return
       const hash = window.location.hash.replace(/^#\/?/, '').trim()
       if (hash && VALID_PAGES.includes(hash) && hash !== page) {
         setPage(hash)

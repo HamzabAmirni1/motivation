@@ -225,28 +225,83 @@ export function AuthProvider({ children }) {
   }, [profile, checkAchievements])
 
   useEffect(() => {
+    const hasAuthCallback = typeof window !== 'undefined' && (
+      window.location.hash.includes('access_token') ||
+      window.location.hash.includes('refresh_token') ||
+      window.location.hash.includes('error') ||
+      window.location.search.includes('code=') ||
+      window.location.search.includes('error=')
+    )
+
+    let isMounted = true
+
+    // 1. Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return
+      const u = session?.user ?? null
+      if (u) {
+        setUser(u)
+        loadProfile(u)
+        setLoading(false)
+      } else if (!hasAuthCallback) {
+        // Only stop loading if we're NOT waiting for an OAuth callback to exchange
+        setLoading(false)
+      }
+    }).catch(() => {
+      if (!isMounted) return
+      if (!hasAuthCallback) setLoading(false)
+    })
+
+    // 2. Auth State Change Listener (handles OAuth callbacks, logins, logouts, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return
+      console.log('ZenStep Auth Event:', event, session?.user?.email)
       const u = session?.user ?? null
       setUser(u)
-      loadProfile(u)
+      if (u) {
+        loadProfile(u)
+        // Clean URL if it contained auth fragments, keeping clean #dashboard
+        if (typeof window !== 'undefined' && hasAuthCallback) {
+          try {
+            window.history.replaceState(null, '', window.location.pathname + '#dashboard')
+          } catch (e) {}
+        }
+      } else {
+        setProfile(null)
+        localStorage.removeItem(LS_PROFILE)
+      }
       setLoading(false)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      const u = session?.user ?? null
-      setUser(u)
-      if (u) loadProfile(u)
-      else { setProfile(null); localStorage.removeItem(LS_PROFILE) }
-      setLoading(false)
-    })
-    return () => subscription.unsubscribe()
+
+    // 3. Fallback safety timeout if waiting for OAuth callback (never hang indefinitely)
+    let fallbackTimeout = null
+    if (hasAuthCallback) {
+      fallbackTimeout = setTimeout(() => {
+        if (isMounted) setLoading(false)
+      }, 4000)
+    }
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+      if (fallbackTimeout) clearTimeout(fallbackTimeout)
+    }
   }, [loadProfile])
 
   // Auth operations
-  const signInWithGoogle = () =>
-    supabase.auth.signInWithOAuth({
+  const signInWithGoogle = () => {
+    const redirectUrl = typeof window !== 'undefined' ? window.location.origin : 'https://amirnizenstep.netlify.app'
+    return supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo: redirectUrl,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent'
+        }
+      },
     })
+  }
 
   const signInWithEmail = (email, pw) =>
     supabase.auth.signInWithPassword({ email, password: pw })
