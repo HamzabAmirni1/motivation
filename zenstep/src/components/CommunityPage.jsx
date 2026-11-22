@@ -68,6 +68,10 @@ export default function CommunityPage() {
   const [reportReason, setReportReason] = useState('محتوى غير لائق')
   const [reportSuccessMsg, setReportSuccessMsg] = useState('')
 
+  // Delete & Unpin Confirmation Modals
+  const [deletingMsgId, setDeletingMsgId] = useState(null)
+  const [showUnpinModal, setShowUnpinModal] = useState(false)
+
   // Enlarged Image Modal
   const [expandedImage, setExpandedImage] = useState(null)
 
@@ -264,9 +268,15 @@ export default function CommunityPage() {
     setEditContent('')
   }
 
-  const handleDeleteMsg = async (msgId) => {
-    if (!confirm('هل أنت متأكد من حذف هذه الرسالة؟')) return
-    await deleteGlobalMessage(msgId)
+  const handleDeleteMsg = (msgId) => {
+    setDeletingMsgId(msgId)
+  }
+
+  const confirmDeleteMsg = async () => {
+    if (!deletingMsgId) return
+    const idToDelete = deletingMsgId
+    setDeletingMsgId(null)
+    await deleteGlobalMessage(idToDelete)
   }
 
   const handlePinMsg = async (msg) => {
@@ -281,9 +291,14 @@ export default function CommunityPage() {
     })
   }
 
-  const handleUnpin = async () => {
+  const handleUnpin = () => {
     if (!isAdmin || !pinnedMessage) return
-    if (!confirm('إلغاء تثبيت الرسالة من أعلى المحادثة؟')) return
+    setShowUnpinModal(true)
+  }
+
+  const confirmUnpin = async () => {
+    if (!isAdmin || !pinnedMessage) return
+    setShowUnpinModal(false)
     await unpinMessage(pinnedMessage.id)
     setPinnedMessage(null)
   }
@@ -1280,6 +1295,137 @@ export default function CommunityPage() {
                   </div>
                 </>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL: BEAUTIFUL ZEN DELETE CONFIRMATION
+      ────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {deletingMsgId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 15 }}
+              className="glass p-6 md:p-8 rounded-[2.5rem] border border-red-500/25 max-w-sm w-full text-center space-y-4 shadow-2xl relative overflow-hidden"
+              style={{
+                background: 'rgba(18, 22, 34, 0.92)'
+              }}
+            >
+              {/* Glowing Ambient Pill */}
+              <div
+                className="w-16 h-16 rounded-3xl mx-auto flex items-center justify-center text-red-400 shadow-xl"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1.5px solid rgba(239, 68, 68, 0.35)',
+                  boxShadow: '0 0 25px rgba(239, 68, 68, 0.2)'
+                }}
+              >
+                <Trash2 size={28} />
+              </div>
+
+              <div>
+                <h3 className="font-black text-lg text-white mb-1.5">
+                  {lang === 'fr' ? 'Supprimer le message ?' : lang === 'en' ? 'Delete this message?' : 'حذف هذه الرسالة؟'}
+                </h3>
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
+                  {lang === 'fr'
+                    ? 'Êtes-vous sûr de vouloir supprimer définitivement ce message ?'
+                    : lang === 'en'
+                    ? 'Are you sure you want to permanently delete this message?'
+                    : 'واش متأكد باغي تمسح هاد الرسالة نهائياً؟ ما غاديش تقدر ترجعها من بعد.'}
+                </p>
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletingMsgId(null)}
+                  className="btn-ghost flex-1 py-3 text-xs font-bold rounded-2xl border-white/10 hover:bg-white/[0.06] transition-all"
+                >
+                  {t('common_cancel', 'إلغاء')}
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteMsg}
+                  className="flex-1 py-3 text-xs font-black rounded-2xl text-white shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                  style={{
+                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                    boxShadow: '0 0 20px rgba(239, 68, 68, 0.35)'
+                  }}
+                >
+                  <Trash2 size={15} />
+                  <span>{lang === 'fr' ? 'Supprimer' : lang === 'en' ? 'Delete' : 'نعم، حذف'}</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL: BEAUTIFUL UNPIN CONFIRMATION
+      ────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showUnpinModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 15 }}
+              className="glass p-6 md:p-8 rounded-[2.5rem] border border-amber-500/25 max-w-sm w-full text-center space-y-4 shadow-2xl relative overflow-hidden"
+              style={{
+                background: 'rgba(18, 22, 34, 0.92)'
+              }}
+            >
+              <div
+                className="w-16 h-16 rounded-3xl mx-auto flex items-center justify-center text-amber-400 shadow-xl"
+                style={{
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1.5px solid rgba(245, 158, 11, 0.35)',
+                  boxShadow: '0 0 25px rgba(245, 158, 11, 0.2)'
+                }}
+              >
+                <PinOff size={28} />
+              </div>
+
+              <div>
+                <h3 className="font-black text-lg text-white mb-1.5">
+                  {lang === 'fr' ? 'Désépingler le message ?' : lang === 'en' ? 'Unpin message?' : 'إلغاء تثبيت الرسالة؟'}
+                </h3>
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
+                  {lang === 'fr'
+                    ? 'Le message ne sera plus affiché en haut de la conversation.'
+                    : lang === 'en'
+                    ? 'The message will no longer appear at the top of the chat.'
+                    : 'الرسالة ما غاديش تبقى مثبتة فـ الشريط العلوي للمجتمع.'}
+                </p>
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUnpinModal(false)}
+                  className="btn-ghost flex-1 py-3 text-xs font-bold rounded-2xl border-white/10 hover:bg-white/[0.06] transition-all"
+                >
+                  {t('common_cancel', 'إلغاء')}
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmUnpin}
+                  className="flex-1 py-3 text-xs font-black rounded-2xl text-black shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                  style={{
+                    background: 'linear-gradient(135deg, #fcd34d, #f59e0b)',
+                    boxShadow: '0 0 20px rgba(245, 158, 11, 0.35)'
+                  }}
+                >
+                  <PinOff size={15} />
+                  <span>{lang === 'fr' ? 'Désépingler' : lang === 'en' ? 'Unpin' : 'إلغاء التثبيت'}</span>
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
