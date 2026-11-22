@@ -46,34 +46,58 @@ export function AuthProvider({ children }) {
   })
 
   // Synchronize state to Supabase
-  const syncToDatabase = async (p = profile) => {
-    if (!p || p.id === 'guest') return
+  const syncToDatabase = async (p) => {
+    let targetProfile = p
+    if (!targetProfile) {
+      try {
+        const raw = localStorage.getItem(LS_PROFILE)
+        if (raw) targetProfile = JSON.parse(raw)
+      } catch {}
+    }
+    if (!targetProfile) targetProfile = profile
+    if (!targetProfile || targetProfile.id === 'guest') return
+
     try {
       const quests_data = JSON.parse(localStorage.getItem(LS_QUESTS) || '{}')
       const mood_data = JSON.parse(localStorage.getItem(LS_MOODS) || '[]')
       const custom_ai_quests = JSON.parse(localStorage.getItem(LS_AI) || 'null')
       const chat_data = JSON.parse(localStorage.getItem(LS_CHAT) || '[]')
-      const settings = p.settings || { notifications: true, sounds: true, theme: 'dark' }
 
-      await supabase.from('profiles').upsert([{ 
-        id: p.id, 
-        username: p.username, 
-        avatar_url: p.avatar_url, 
-        xp: p.xp || 0, 
-        level: p.level || 1, 
-        streak_count: p.streak_count || 0, 
-        last_quest_date: p.last_quest_date,
+      // Build payload with ONLY the columns confirmed to exist in public.profiles:
+      // (id, username, avatar_url, xp, level, streak_count, last_quest_date, quests_data, mood_data, custom_ai_quests, chat_data, updated_at)
+      const payload = { 
+        id: targetProfile.id, 
+        username: targetProfile.username, 
+        avatar_url: targetProfile.avatar_url, 
+        xp: targetProfile.xp || 0, 
+        level: targetProfile.level || 1, 
+        streak_count: targetProfile.streak_count || 0, 
+        last_quest_date: targetProfile.last_quest_date || null,
         quests_data,
         mood_data,
         custom_ai_quests,
         chat_data,
-        settings,
-        role: p.role || 'user',
-        language: p.language || 'ar',
         updated_at: new Date().toISOString()
-      }])
+      }
+
+      const { error } = await supabase.from('profiles').upsert([payload])
+      if (error) {
+        console.warn('Sync to Supabase profile warning:', error)
+      } else {
+        console.log('Profile successfully synced to Supabase ✓')
+      }
+
+      // Also update auth user metadata in Supabase Auth so session and token stay aligned
+      if (targetProfile.username || targetProfile.avatar_url) {
+        supabase.auth.updateUser({
+          data: {
+            full_name: targetProfile.username,
+            avatar_url: targetProfile.avatar_url
+          }
+        }).then(() => {}).catch(() => {})
+      }
     } catch (e) {
-      console.warn('Sync to Supabase profile:', e)
+      console.warn('Sync to Supabase profile exception:', e)
     }
   }
 
@@ -127,20 +151,30 @@ export function AuthProvider({ children }) {
   // Load Profile
   const loadProfile = useCallback(async (u) => {
     try {
+      let localProfile = null
+      try {
+        const raw = localStorage.getItem(LS_PROFILE)
+        if (raw) localProfile = JSON.parse(raw)
+      } catch {}
+
       if (u) {
         const { data, error } = await supabase.from('profiles').select('*').eq('id', u.id).single()
         if (data && !error) {
+          // If localProfile has a customized username or avatar, prefer it over null/empty database fields
+          const finalUsername = data.username || localProfile?.username || u.user_metadata?.full_name || u.email?.split('@')[0] || 'صاحبي'
+          const finalAvatar = data.avatar_url || localProfile?.avatar_url || u.user_metadata?.avatar_url || '🌱'
+
           const newProfile = {
             id: u.id,
-            username: data.username || u.user_metadata?.full_name || u.email?.split('@')[0],
-            avatar_url: data.avatar_url || u.user_metadata?.avatar_url,
-            xp: data.xp || 0,
-            level: data.level || calculateLevel(data.xp || 0).level,
-            streak_count: data.streak_count || 0,
-            last_quest_date: data.last_quest_date,
-            role: data.role || 'user',
-            language: data.language || 'ar',
-            settings: data.settings || { notifications: true, sounds: true, theme: 'dark' }
+            username: finalUsername,
+            avatar_url: finalAvatar,
+            xp: Math.max(data.xp || 0, localProfile?.xp || 0),
+            level: Math.max(data.level || 1, localProfile?.level || 1),
+            streak_count: Math.max(data.streak_count || 0, localProfile?.streak_count || 0),
+            last_quest_date: data.last_quest_date || localProfile?.last_quest_date || null,
+            role: localProfile?.role || 'user',
+            language: localProfile?.language || localStorage.getItem('zs_lang') || 'ar',
+            settings: localProfile?.settings || { notifications: true, sounds: true, theme: 'dark' }
           }
           setProfile(newProfile)
           localStorage.setItem(LS_PROFILE, JSON.stringify(newProfile))
@@ -156,8 +190,7 @@ export function AuthProvider({ children }) {
         }
       }
       
-      const raw = localStorage.getItem(LS_PROFILE)
-      const p = raw ? JSON.parse(raw) : makeDefault(u)
+      const p = localProfile || makeDefault(u)
       const verified = { ...p, level: calculateLevel(p.xp || 0).level }
       setProfile(verified)
       checkAchievements(verified)

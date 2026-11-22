@@ -128,13 +128,15 @@ export default function ProfilePage() {
 
   const handleSaveProfile = () => {
     setLang(language)
+    const newUsername = username.trim() || profile?.username || 'صاحبي'
+    const newAvatar = selectedAvatar || profile?.avatar_url || '🌱'
     saveProfile({
       ...profile,
-      username: username.trim() || profile.username,
-      avatar_url: selectedAvatar,
+      username: newUsername,
+      avatar_url: newAvatar,
       language,
       settings: {
-        ...profile.settings,
+        ...(profile?.settings || {}),
         notifications: notifEnabled,
         sounds: soundEnabled
       }
