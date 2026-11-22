@@ -249,7 +249,16 @@ export default function CommunityPage() {
       } else if (event.type === 'new_private_message') {
         if (event.payload) {
           setPrivateMessages(prev => {
-            if (prev.some(m => m.id === event.payload.id)) return prev
+            // Deduplicate by ID and by content+sender+time (within 10s)
+            const isDuplicate = prev.some(m => 
+              m.id === event.payload.id ||
+              (
+                m.sender_id === event.payload.sender_id &&
+                m.content === event.payload.content &&
+                Math.abs(new Date(m.created_at) - new Date(event.payload.created_at)) < 10000
+              )
+            )
+            if (isDuplicate) return prev
             if (event.payload.sender_id === user?.id || event.payload.recipient_id === user?.id) {
               return [...prev, event.payload]
             }
@@ -414,7 +423,16 @@ export default function CommunityPage() {
 
     if (sent) {
       setPrivateMessages(prev => {
-        if (prev.some(m => m.id === sent.id)) return prev
+        // Deduplicate by ID and by content+sender within 10s
+        const isDuplicate = prev.some(m =>
+          m.id === sent.id ||
+          (
+            m.sender_id === sent.sender_id &&
+            m.content === sent.content &&
+            Math.abs(new Date(m.created_at) - new Date(sent.created_at)) < 10000
+          )
+        )
+        if (isDuplicate) return prev
         return [...prev, sent]
       })
     }

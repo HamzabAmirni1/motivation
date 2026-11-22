@@ -488,7 +488,14 @@ export async function fetchUserPrivateMessages(userId, adminId = ADMIN_USER_ID) 
     if (!mergedMap.has(m.id)) mergedMap.set(m.id, m)
   })
 
-  return Array.from(mergedMap.values()).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  const raw = Array.from(mergedMap.values()).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  const deduped = deduplicatePrivateMessages(raw)
+
+  // Sanitize localStorage: clean out old duplicates
+  const allOther = allLocal.filter(m => m.sender_id !== userId && m.recipient_id !== userId)
+  localStorage.setItem(LS_PRIVATE, JSON.stringify([...allOther, ...deduped]))
+
+  return deduped
 }
 
 export async function sendPrivateMessage({ senderId, recipientId, content, imageUrl = null, senderName = '', senderAvatar = '' }) {
@@ -513,9 +520,6 @@ export async function sendPrivateMessage({ senderId, recipientId, content, image
     sender_avatar: senderAvatar
   }
 
-  // Optimistic local save FIRST: message is instantly visible and persistent!
-  saveLocalPrivateMessage(localMsg)
-
   try {
     const { data, error } = await supabase
       .from('admin_private_messages')
@@ -524,19 +528,25 @@ export async function sendPrivateMessage({ senderId, recipientId, content, image
       .single()
 
     if (!error && data) {
+      // Supabase succeeded: save ONLY the confirmed server message (no optimistic priv_ needed)
       const merged = { ...localMsg, ...data }
       saveLocalPrivateMessage(merged)
       broadcastCommunityEvent('new_private_message', merged)
       return merged
     } else {
       console.warn('Supabase private insert note:', error)
+      // Supabase failed: save the optimistic priv_ message as fallback
+      saveLocalPrivateMessage(localMsg)
+      broadcastCommunityEvent('new_private_message', localMsg)
+      return localMsg
     }
   } catch (err) {
     console.warn('Supabase private insert exception:', err)
+    // Exception: save the optimistic priv_ message as fallback
+    saveLocalPrivateMessage(localMsg)
+    broadcastCommunityEvent('new_private_message', localMsg)
+    return localMsg
   }
-
-  broadcastCommunityEvent('new_private_message', localMsg)
-  return localMsg
 }
 
 export async function markPrivateMessagesAsRead(senderId, recipientId) {
@@ -626,9 +636,64 @@ function getLocalPrivateMessages() {
   }
 }
 
+function deduplicatePrivateMessages(list) {
+  const seen = new Map()
+  for (const msg of list) {
+    // If this msg has a real UUID (not priv_), try to replace any optimistic priv_ version
+    if (msg.id && !msg.id.startsWith('priv_')) {
+      // Remove any optimistic message with same content + sender + close timestamp
+      for (const [key, existing] of seen.entries()) {
+        if (
+          existing.id.startsWith('priv_') &&
+          existing.sender_id === msg.sender_id &&
+          existing.content === msg.content &&
+          Math.abs(new Date(existing.created_at) - new Date(msg.created_at)) < 10000
+        ) {
+          seen.delete(key)
+        }
+      }
+      seen.set(msg.id, msg)
+    } else {
+      // For priv_ messages, only add if no duplicate UUID version exists yet
+      const alreadyConfirmed = Array.from(seen.values()).some(
+        existing =>
+          !existing.id.startsWith('priv_') &&
+          existing.sender_id === msg.sender_id &&
+          existing.content === msg.content &&
+          Math.abs(new Date(existing.created_at) - new Date(msg.created_at)) < 10000
+      )
+      if (!alreadyConfirmed && !seen.has(msg.id)) {
+        seen.set(msg.id, msg)
+      }
+    }
+  }
+  return Array.from(seen.values())
+}
+
 function saveLocalPrivateMessage(msg) {
   const all = getLocalPrivateMessages()
-  all.push(msg)
+
+  // If saving a confirmed UUID message, replace any existing priv_ optimistic version
+  if (msg.id && !msg.id.startsWith('priv_')) {
+    const idx = all.findIndex(
+      m =>
+        m.id.startsWith('priv_') &&
+        m.sender_id === msg.sender_id &&
+        m.content === msg.content &&
+        Math.abs(new Date(m.created_at) - new Date(msg.created_at)) < 10000
+    )
+    if (idx !== -1) {
+      all[idx] = msg // replace in place
+    } else if (!all.some(m => m.id === msg.id)) {
+      all.push(msg)
+    }
+  } else {
+    // priv_ message: only add if no duplicate exists
+    if (!all.some(m => m.id === msg.id)) {
+      all.push(msg)
+    }
+  }
+
   localStorage.setItem(LS_PRIVATE, JSON.stringify(all))
 }
 
