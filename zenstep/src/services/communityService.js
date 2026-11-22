@@ -19,6 +19,25 @@ const LS_PINNED = 'zs_community_pinned_v2'
 const LS_PRIVATE = 'zs_community_private_v2'
 const LS_REACTIONS = 'zs_community_reactions_v2'
 const LS_REPORTS = 'zs_community_reports_v2'
+const LS_DELETED = 'zs_community_deleted_ids_v2'
+
+export function getDeletedMessageIds() {
+  try {
+    const saved = localStorage.getItem(LS_DELETED)
+    return saved ? new Set(JSON.parse(saved)) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+export function addDeletedMessageId(id) {
+  if (!id) return
+  try {
+    const ids = getDeletedMessageIds()
+    ids.add(id)
+    localStorage.setItem(LS_DELETED, JSON.stringify(Array.from(ids)))
+  } catch {}
+}
 
 // Initial seed pinned message
 const DEFAULT_PINNED = {
@@ -113,6 +132,7 @@ export function compressChatImage(file, maxSize = 600, quality = 0.8) {
 // 1. GLOBAL CHAT MESSAGES
 // ─────────────────────────────────────────────────────────────
 export async function fetchGlobalMessages({ limit = 30, before = null } = {}) {
+  const deletedIds = getDeletedMessageIds()
   try {
     let query = supabase
       .from('global_chat_messages')
@@ -129,20 +149,25 @@ export async function fetchGlobalMessages({ limit = 30, before = null } = {}) {
     if (error) throw error
 
     if (data && data.length > 0) {
+      const validData = data.filter(m => !deletedIds.has(m.id) && m.moderation_status !== 'hidden')
       // Save recent into local cache
       const cached = getLocalGlobalMessages()
       const mergedMap = new Map()
-      cached.forEach(m => mergedMap.set(m.id, m))
-      data.forEach(m => mergedMap.set(m.id, m))
+      cached.forEach(m => {
+        if (!deletedIds.has(m.id) && m.moderation_status !== 'hidden') {
+          mergedMap.set(m.id, m)
+        }
+      })
+      validData.forEach(m => mergedMap.set(m.id, m))
       localStorage.setItem(LS_GLOBAL, JSON.stringify(Array.from(mergedMap.values())))
-      return data.reverse()
+      return validData.reverse()
     }
   } catch (err) {
     // Graceful fallback to local cache
   }
 
   const local = getLocalGlobalMessages()
-  let filtered = local.filter(m => m.moderation_status !== 'hidden')
+  let filtered = local.filter(m => !deletedIds.has(m.id) && m.moderation_status !== 'hidden')
   if (before) {
     filtered = filtered.filter(m => new Date(m.created_at) < new Date(before))
   }
@@ -234,16 +259,30 @@ export async function editGlobalMessage(messageId, newContent) {
 }
 
 export async function deleteGlobalMessage(messageId) {
-  try {
-    await supabase.from('global_chat_messages').delete().eq('id', messageId)
-  } catch (err) {
-    // fallback
-  }
+  if (!messageId) return false
 
+  // 1. Permanently blacklist ID in local storage so it never reappears
+  addDeletedMessageId(messageId)
+
+  // 2. Remove immediately from local cached storage
   const all = getLocalGlobalMessages()
   const updated = all.filter(m => m.id !== messageId)
   localStorage.setItem(LS_GLOBAL, JSON.stringify(updated))
+
+  // 3. Broadcast instant delete event to all components
   broadcastCommunityEvent('message_deleted', { id: messageId })
+
+  // 4. Try hard delete in Supabase, fallback to soft-delete if RLS restricts hard-delete
+  try {
+    const { error } = await supabase.from('global_chat_messages').delete().eq('id', messageId)
+    if (error) {
+      console.warn('Hard delete blocked by policy, applying soft-delete:', error)
+      await supabase.from('global_chat_messages').update({ moderation_status: 'hidden' }).eq('id', messageId)
+    }
+  } catch (err) {
+    console.warn('Supabase delete error:', err)
+  }
+
   return true
 }
 
@@ -631,7 +670,8 @@ export function subscribeToCommunityEvents(callback) {
   const channel = supabase
     .channel(channelName)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'global_chat_messages' }, payload => {
-      if (payload.new && payload.new.moderation_status !== 'hidden') {
+      const deletedIds = getDeletedMessageIds()
+      if (payload.new && payload.new.moderation_status !== 'hidden' && !deletedIds.has(payload.new.id)) {
         callback({ type: 'new_global_message', payload: payload.new })
       }
     })
@@ -642,6 +682,7 @@ export function subscribeToCommunityEvents(callback) {
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'global_chat_messages' }, payload => {
       if (payload.old) {
+        addDeletedMessageId(payload.old.id)
         callback({ type: 'message_deleted', payload: payload.old })
       }
     })
@@ -682,18 +723,20 @@ export function subscribeToCommunityEvents(callback) {
   events.forEach(evt => window.addEventListener(evt, handleLocal))
 
   // 3. Fast auto-sync poll (every 2.5s) like WhatsApp Web live sync
+  //    Uses sync_messages event type so CommunityPage can do a full state replace
+  //    instead of additive insertion — this prevents deleted messages from reappearing.
   const liveSyncInterval = setInterval(async () => {
     try {
       const { data, error } = await supabase
         .from('global_chat_messages')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(15)
+        .limit(30)
 
-      if (!error && data && data.length > 0) {
-        data.reverse().forEach(row => {
-          callback({ type: 'new_global_message', payload: row })
-        })
+      if (!error && data) {
+        const deletedIds = getDeletedMessageIds()
+        const cleanData = data.filter(m => !deletedIds.has(m.id) && m.moderation_status !== 'hidden')
+        callback({ type: 'sync_messages', payload: cleanData.reverse() })
       }
     } catch (err) {}
   }, 2500)

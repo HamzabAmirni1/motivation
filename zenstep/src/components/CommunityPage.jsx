@@ -4,7 +4,7 @@ import {
   Users, Send, Pin, PinOff, Heart, ThumbsUp, Sparkles, Smile,
   Image as ImageIcon, MoreVertical, Edit2, Trash2, Flag,
   Search, ShieldAlert, Check, CheckCheck, Clock, AlertTriangle,
-  Lock, X, ChevronUp, UserCheck, MessageSquare, ArrowLeft, RefreshCw
+  Lock, X, ChevronUp, ChevronDown, UserCheck, MessageSquare, ArrowLeft, RefreshCw
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -97,12 +97,27 @@ export default function CommunityPage() {
 
   // Refs
   const messagesEndRef = useRef(null)
+  const messagesContainerRef = useRef(null)
   const fileInputRef = useRef(null)
   const privateFileInputRef = useRef(null)
+  const isNearBottomRef = useRef(true)
+
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false)
+
+  // Track scroll position so we know if user is reading older messages
+  const handleScroll = (e) => {
+    const el = e.currentTarget
+    // If user is within 140px of bottom, treat as "at bottom"
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 140
+    isNearBottomRef.current = atBottom
+    setShowScrollBottomBtn(!atBottom)
+  }
 
   // Auto-scroll to bottom of global chat
-  const scrollToBottom = (smooth = true) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' })
+  const scrollToBottom = (smooth = true, force = false) => {
+    if (force || isNearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' })
+    }
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -126,13 +141,16 @@ export default function CommunityPage() {
       console.warn('Community load error:', err)
     } finally {
       setLoading(false)
-      setTimeout(() => scrollToBottom(false), 200)
+      setTimeout(() => scrollToBottom(false, true), 200)
     }
   }
 
   // Load older messages
   const loadOlderMessages = async () => {
     if (messages.length === 0 || loadingOlder) return
+    const container = messagesContainerRef.current
+    const prevScrollHeight = container ? container.scrollHeight : 0
+    const prevScrollTop = container ? container.scrollTop : 0
     setLoadingOlder(true)
     const oldest = messages[0]
     try {
@@ -144,6 +162,14 @@ export default function CommunityPage() {
         setMessages(combined)
         const newReactions = await fetchReactions(older.map(m => m.id))
         setReactionsMap(prev => ({ ...prev, ...newReactions }))
+
+        // Preserve exact scroll position so user doesn't jump
+        requestAnimationFrame(() => {
+          if (container) {
+            const heightDiff = container.scrollHeight - prevScrollHeight
+            container.scrollTop = prevScrollTop + heightDiff
+          }
+        })
       }
     } finally {
       setLoadingOlder(false)
@@ -183,7 +209,26 @@ export default function CommunityPage() {
           if (prev.some(m => m.id === event.payload.id)) return prev
           return [...prev, event.payload]
         })
-        scrollToBottom(true)
+        // Only scroll if already at bottom, don't interrupt reading
+        scrollToBottom(true, false)
+      } else if (event.type === 'sync_messages') {
+        setMessages(prev => {
+          const payload = event.payload || []
+          const payloadIds = new Set(payload.map(m => m.id))
+
+          // Avoid re-rendering if data is identical
+          const currentNonLocal = prev.filter(m => !m.id.startsWith('local_'))
+          if (
+            currentNonLocal.length === payload.length &&
+            currentNonLocal.every((m, i) => m.id === payload[i]?.id && m.content === payload[i]?.content && m.moderation_status === payload[i]?.moderation_status)
+          ) {
+            return prev
+          }
+
+          // Keep optimistic local messages not yet in payload
+          const localOnly = prev.filter(m => m.id.startsWith('local_') && !payloadIds.has(m.id))
+          return [...payload, ...localOnly]
+        })
       } else if (event.type === 'message_updated') {
         setMessages(prev => prev.map(m => m.id === event.payload.id ? { ...m, ...event.payload } : m))
       } else if (event.type === 'message_deleted') {
@@ -231,7 +276,11 @@ export default function CommunityPage() {
       user,
       profile
     })
-    scrollToBottom(true)
+    // Force auto-scroll to the bottom because user explicitly sent a message
+    setTimeout(() => {
+      isNearBottomRef.current = true
+      scrollToBottom(true, true)
+    }, 60)
   }
 
   const handleImageSelect = async (e, isPrivate = false) => {
@@ -535,7 +584,11 @@ export default function CommunityPage() {
           </div>
 
           {/* Messages Scroll Area */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+          <div
+            ref={messagesContainerRef}
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4"
+          >
             {/* Load older button */}
             {hasMoreOlder && messages.length >= 25 && (
               <div className="text-center pt-1 pb-3">
@@ -749,6 +802,26 @@ export default function CommunityPage() {
             )}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Floating Scroll to Bottom Button (WhatsApp style) */}
+          <AnimatePresence>
+            {showScrollBottomBtn && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                onClick={() => {
+                  isNearBottomRef.current = true
+                  scrollToBottom(true, true)
+                  setShowScrollBottomBtn(false)
+                }}
+                className="absolute bottom-20 start-6 z-30 p-2 rounded-full bg-[#6ee7b7] text-slate-900 shadow-xl border border-white/20 hover:scale-110 active:scale-95 transition-transform flex items-center justify-center cursor-pointer"
+                title="النزول لآخر الرسائل"
+              >
+                <ChevronDown size={18} />
+              </motion.button>
+            )}
+          </AnimatePresence>
 
           {/* Quick Emojis Bar (When toggled) */}
           <AnimatePresence>
