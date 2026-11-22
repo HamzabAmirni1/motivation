@@ -7,6 +7,10 @@ import { supabase } from '../lib/supabase'
 
 const AVATAR_PRESETS = ['🌱', '🌿', '🌸', '🌻', '🧘', '🌊', '🌙', '⭐', '🦁', '🦉', '🦋', '✨'];
 
+function isImageUrl(url) {
+  return typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/') || url.startsWith('data:image'));
+}
+
 export default function ProfilePage() {
   const { user, profile, saveProfile, signOut } = useAuth()
   const xp = profile?.xp || 0
@@ -94,15 +98,19 @@ export default function ProfilePage() {
       >
         <div className="flex items-center gap-5">
           <div
-            className="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl shadow-2xl relative"
+            className="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl shadow-2xl relative overflow-hidden shrink-0"
             style={{ background: 'linear-gradient(135deg, #6ee7b7, #a78bfa)' }}
           >
-            {profile?.avatar_url || lv.emoji}
+            {isImageUrl(profile?.avatar_url) ? (
+              <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-3xl" />
+            ) : (
+              <span>{profile?.avatar_url || lv.emoji}</span>
+            )}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black text-white">{profile?.username || 'صاحبي'}</h1>
-              <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-[#6ee7b7]/15 text-[#6ee7b7]">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-black text-white truncate max-w-xs">{profile?.username || 'صاحبي'}</h1>
+              <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-[#6ee7b7]/15 text-[#6ee7b7] shrink-0">
                 Lv.{lv.level} • {lv.titleAr || lv.title}
               </span>
             </div>
@@ -183,7 +191,19 @@ export default function ProfilePage() {
 
           <div>
             <label className="block text-xs font-bold text-[var(--subtle)] mb-2">اختر الأفاتار الرمزي</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              {profile?.avatar_url && isImageUrl(profile.avatar_url) && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedAvatar(profile.avatar_url)}
+                  className={`w-11 h-11 rounded-xl overflow-hidden border transition-all ${
+                    selectedAvatar === profile.avatar_url ? 'ring-2 ring-[#6ee7b7] border-[#6ee7b7]' : 'border-white/5 opacity-80'
+                  }`}
+                  title="صورة حساب Google"
+                >
+                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                </button>
+              )}
               {AVATAR_PRESETS.map(av => (
                 <button
                   key={av}

@@ -18,6 +18,10 @@ const NAV_ITEMS = [
   { id: 'developer', label: 'المطور',   icon: '👨‍💻' },
 ];
 
+function isImageUrl(url) {
+  return typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/') || url.startsWith('data:image'));
+}
+
 export default function Navbar({ page, setPage }) {
   const { profile, signOut, notifications } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -110,13 +114,17 @@ export default function Navbar({ page, setPage }) {
             {/* User Avatar */}
             <button
               onClick={() => setPage('profile')}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-md ring-2 ring-white/10 hover:ring-[#6ee7b7]/50 transition-all"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-md ring-2 ring-white/10 hover:ring-[#6ee7b7]/50 transition-all overflow-hidden shrink-0"
               style={{
                 background: 'linear-gradient(135deg,#6ee7b7,#a78bfa)',
                 color: '#0d1117'
               }}
             >
-              {profile?.avatar_url || (profile?.username?.[0] || '🌱').toUpperCase()}
+              {isImageUrl(profile?.avatar_url) ? (
+                <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-full" />
+              ) : (
+                <span>{profile?.avatar_url || (profile?.username?.[0] || '🌱').toUpperCase()}</span>
+              )}
             </button>
 
             {/* Mobile Menu Toggle Button */}
