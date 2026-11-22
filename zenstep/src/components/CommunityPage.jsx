@@ -101,9 +101,17 @@ export default function CommunityPage() {
   const messagesContainerRef = useRef(null)
   const fileInputRef = useRef(null)
   const privateFileInputRef = useRef(null)
+  const adminMessagesEndRef = useRef(null)
+  const userPrivateMessagesEndRef = useRef(null)
   const isNearBottomRef = useRef(true)
 
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false)
+
+  // Auto-scroll private chat to bottom on new messages
+  useEffect(() => {
+    adminMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    userPrivateMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [privateMessages])
 
   // Track scroll position so we know if user is reading older messages
   const handleScroll = (e) => {
@@ -945,9 +953,9 @@ export default function CommunityPage() {
           {/* ADMIN VIEW: TWO-PANE INBOX */}
           {isAdmin ? (
             <>
-              {/* Left Column: Conversations List */}
-              <div className="w-full md:w-80 border-b md:border-b-0 md:border-l border-white/5 flex flex-col bg-black/20">
-                <div className="p-3.5 border-b border-white/5 space-y-2">
+              {/* Left Column: Conversations List (Hidden on mobile when a thread is open) */}
+              <div className={`w-full md:w-80 border-b md:border-b-0 md:border-l border-white/5 flex flex-col bg-black/20 min-h-0 ${selectedUserThread ? 'hidden md:flex' : 'flex-1'}`}>
+                <div className="p-3.5 border-b border-white/5 space-y-2 shrink-0">
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-sm text-white flex items-center gap-2">
                       <Lock size={15} className="text-[#a78bfa]" />
@@ -967,7 +975,7 @@ export default function CommunityPage() {
                   />
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                <div className="flex-1 overflow-y-auto p-2 space-y-1 min-h-0">
                   {filteredInbox.length === 0 ? (
                     <div className="text-center py-12 text-xs text-[var(--muted)]">
                       {t('comm_inbox_empty', 'لا توجد رسائل خاصة جديدة')}
@@ -1009,25 +1017,32 @@ export default function CommunityPage() {
                 </div>
               </div>
 
-              {/* Right Column: Selected Thread Messages */}
-              <div className="flex-1 flex flex-col bg-black/10">
+              {/* Right Column: Selected Thread Messages (Full width on mobile when thread is open) */}
+              <div className={`flex-1 flex flex-col bg-black/10 min-h-0 ${!selectedUserThread ? 'hidden md:flex' : 'flex'}`}>
                 {selectedUserThread ? (
                   <>
-                    {/* Thread Header */}
-                    <div className="p-3 px-5 border-b border-white/5 flex items-center justify-between bg-black/30">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-base">
+                    {/* Thread Header with Mobile Back Button */}
+                    <div className="p-3 px-4 border-b border-white/5 flex items-center justify-between bg-black/30 shrink-0">
+                      <div className="flex items-center gap-2.5">
+                        <button
+                          onClick={() => setSelectedUserThread(null)}
+                          className="md:hidden p-1.5 rounded-xl bg-white/[0.06] hover:bg-white/10 text-white/80 hover:text-white transition-colors shrink-0"
+                          title="رجوع للمحادثات"
+                        >
+                          <ArrowLeft size={16} className={dir === 'rtl' ? 'rotate-180' : ''} />
+                        </button>
+                        <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-base shrink-0">
                           {renderAvatarContent({ username: selectedUserThread.userName, avatar_url: selectedUserThread.userAvatar }, '🌱')}
                         </div>
-                        <div>
-                          <h4 className="font-bold text-xs text-white">{selectedUserThread.userName}</h4>
-                          <span className="text-[10px] text-emerald-400 font-bold">محادثة خاصة مؤمنة 🔒</span>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-xs text-white truncate">{selectedUserThread.userName}</h4>
+                          <span className="text-[10px] text-emerald-400 font-bold block">محادثة خاصة مؤمنة 🔒</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Thread Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {/* Thread Messages List */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
                       {privateMessages.map(msg => {
                         const isMe = msg.sender_id === user?.id
                         return (
@@ -1058,22 +1073,24 @@ export default function CommunityPage() {
                           </div>
                         )
                       })}
+                      <div ref={adminMessagesEndRef} />
                     </div>
 
-                    {/* Admin Reply Composer */}
-                    <form onSubmit={handleSendPrivate} className="p-2 sm:p-3 border-t border-white/5 flex items-center gap-1.5 sm:gap-2 bg-black/40">
+                    {/* Admin Reply Composer: Always pinned & visible */}
+                    <form onSubmit={handleSendPrivate} className="p-2 sm:p-3 border-t border-white/5 flex items-center gap-1.5 sm:gap-2 bg-black/40 shrink-0">
                       <div className="flex-1 min-w-0">
                         <input
                           type="text"
                           value={privateInput}
                           onChange={e => setPrivateInput(e.target.value)}
                           placeholder="الرد على هذا العضو بسرية..."
-                          className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#a78bfa] transition-all"
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-3.5 py-2.5 text-xs text-white placeholder-[var(--muted)] focus:outline-none focus:border-[#a78bfa] transition-all"
                         />
                       </div>
                       <button
                         type="submit"
-                        className="px-4 py-2 text-xs font-bold rounded-2xl bg-[#a78bfa] text-[#0d1117] hover:bg-[#c4b5fd] flex items-center gap-1 shrink-0 shadow-md transition-all active:scale-95"
+                        disabled={!privateInput.trim() && !privateImagePreview}
+                        className="px-4 py-2.5 text-xs font-bold rounded-2xl bg-[#a78bfa] text-[#0d1117] hover:bg-[#c4b5fd] flex items-center gap-1 shrink-0 shadow-md transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Send size={14} className={dir === 'rtl' ? 'rotate-180' : ''} />
                         <span>رد</span>
@@ -1089,9 +1106,9 @@ export default function CommunityPage() {
             </>
           ) : (
             /* USER VIEW: DIRECT PRIVATE THREAD WITH ADMIN */
-            <div className="flex-1 flex flex-col bg-black/10">
+            <div className="flex-1 flex flex-col bg-black/10 min-h-0">
               {/* Security Privacy Notice */}
-              <div className="p-3.5 px-4 bg-[#a78bfa]/10 border-b border-[#a78bfa]/20 flex items-center gap-3">
+              <div className="p-3.5 px-4 bg-[#a78bfa]/10 border-b border-[#a78bfa]/20 flex items-center gap-3 shrink-0">
                 <Lock size={18} className="text-[#a78bfa] shrink-0" />
                 <p className="text-xs text-[#a78bfa] leading-relaxed font-medium">
                   {t('comm_private_notice', 'هذه المحادثة خاصة وسرية بالكامل بينك وبين إدارة ZenStep فقط.')}
@@ -1099,7 +1116,7 @@ export default function CommunityPage() {
               </div>
 
               {/* Messages list */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3">
+              <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 min-h-0">
                 {privateMessages.length === 0 ? (
                   <div className="py-20 text-center max-w-sm mx-auto space-y-2">
                     <span className="text-4xl block">💬</span>
@@ -1140,11 +1157,12 @@ export default function CommunityPage() {
                     )
                   })
                 )}
+                <div ref={userPrivateMessagesEndRef} />
               </div>
 
               {/* Image Preview for private chat */}
               {privateImagePreview && (
-                <div className="p-2 px-4 bg-black/40 border-t border-white/5 flex items-center gap-3">
+                <div className="p-2 px-4 bg-black/40 border-t border-white/5 flex items-center gap-3 shrink-0">
                   <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-[#a78bfa]">
                     <img src={privateImagePreview} alt="upload" className="w-full h-full object-cover" />
                     <button onClick={() => setPrivateImagePreview(null)} className="absolute top-0 right-0 bg-black text-white p-0.5">
@@ -1156,7 +1174,7 @@ export default function CommunityPage() {
               )}
 
               {/* Composer */}
-              <form onSubmit={handleSendPrivate} className="p-2 sm:p-3 md:p-4 bg-black/40 border-t border-white/5 flex items-center gap-1.5 sm:gap-2">
+              <form onSubmit={handleSendPrivate} className="p-2 sm:p-3 md:p-4 bg-black/40 border-t border-white/5 flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <input
                   type="file"
                   ref={privateFileInputRef}
